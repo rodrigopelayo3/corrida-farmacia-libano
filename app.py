@@ -178,6 +178,36 @@ escenario = st.sidebar.selectbox("Escenario", ["Conservador", "Medio", "Alto"], 
 p = PRESETS[modelo][escenario]
 m = MODELOS[modelo]
 
+# Explicación de escenarios
+with st.sidebar.expander("📚 ¿Qué significa cada escenario?", expanded=False):
+    st.markdown("""
+    **🔴 CONSERVADOR**: Para ser cauteloso
+    - Ubicación nueva o con mucha competencia
+    - Zona con poco flujo peatonal
+    - Clientes aún no te conocen
+    - Prefieres "pecar de precavido"
+    
+    **🟡 MEDIO**: Lo más probable que pase
+    - Ubicación decente con flujo normal
+    - Algo de competencia pero manejable
+    - Ya tienes algunos clientes fieles
+    - Escenario "realista" más común
+    
+    **🟢 ALTO**: Si todo sale perfecto
+    - Excelente ubicación (esquina, plaza, etc.)
+    - Poco o nada de competencia cerca
+    - Zona con mucho flujo peatonal
+    - Clientes muy fieles que te recomiendan
+    """)
+    
+    st.info(f"""
+    **Tu escenario actual: {escenario}**
+    
+    {'🔴 Mejor prevenir que lamentar' if escenario == 'Conservador' 
+     else '🟡 El punto medio más realista' if escenario == 'Medio'
+     else '🟢 El mejor de los casos posibles'}
+    """)
+
 st.sidebar.markdown("---")
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -511,22 +541,110 @@ with col_flujo3:
     st.metric("💳 Ticket promedio", f"${ticket_prom:,.0f}")
     st.caption("Lo que gasta cada cliente")
 
-# Explicación del % de conversión por escenario
+# Explicación detallada del % de conversión por escenario
+st.markdown("### 🎯 ¿Qué significa tu escenario?")
+
 if escenario == "Conservador":
-    st.info(f"""
-    🎯 **Escenario Conservador ({conversion_rate:.1f}% conversión)**: 
-    De cada 100 personas que pasan, solo {int(conversion_rate)} compran. Es normal en ubicaciones nuevas o competitivas.
+    st.warning(f"""
+    **🔴 ESCENARIO CONSERVADOR ({conversion_rate:.1f}% conversión)**
+    
+    **¿Qué significa?**
+    - De cada 100 personas que pasan frente a tu farmacia, solo **{int(conversion_rate)} entran y compran**
+    - Es como estar en una calle con competencia o ser nuevo en la zona
+    
+    **¿Cuándo pasa esto?**
+    - 🏪 Acabas de abrir y la gente no te conoce
+    - 🏬 Hay otras farmacias muy cerca (competencia fuerte)
+    - 🚶 La ubicación tiene poco flujo peatonal
+    - 💸 Los precios son altos comparado con la competencia
+    
+    **¿Es bueno o malo?**
+    - 👍 Es **realista** para empezar - mejor ser precavido
+    - 👍 Si los números salen bien aquí, ¡seguro tendrás éxito!
+    - ⚠️ Pero necesitas trabajar en atraer más clientes
     """)
 elif escenario == "Medio":
-    st.success(f"""
-    🎯 **Escenario Medio ({conversion_rate:.1f}% conversión)**: 
-    De cada 100 personas que pasan, {int(conversion_rate)} compran. Buena ubicación y servicio establecido.
+    st.info(f"""
+    **🟡 ESCENARIO MEDIO ({conversion_rate:.1f}% conversión)**
+    
+    **¿Qué significa?**
+    - De cada 100 personas que pasan, **{int(conversion_rate)} entran y compran**
+    - Es el escenario "normal" - ni muy bueno ni muy malo
+    
+    **¿Cuándo pasa esto?**
+    - 🏪 Ya llevas algunos meses funcionando
+    - 🏬 Hay competencia pero también tienes tus clientes fieles
+    - 🚶 Ubicación decente con flujo regular de gente
+    - 💊 Ofreces buen servicio y precios competitivos
+    
+    **¿Es bueno o malo?**
+    - 👍 Es el escenario **más realista** en la mayoría de casos
+    - 👍 Balanceado - ni muy optimista ni muy pesimista
+    - 📈 Con esfuerzo puedes llegar al escenario "Alto"
     """)
 else:  # Alto
     st.success(f"""
-    🎯 **Escenario Alto ({conversion_rate:.1f}% conversión)**: 
-    De cada 100 personas que pasan, {int(conversion_rate)} compran. Excelente ubicación, alta fidelidad de clientes.
+    **🟢 ESCENARIO ALTO ({conversion_rate:.1f}% conversión)**
+    
+    **¿Qué significa?**
+    - De cada 100 personas que pasan, **{int(conversion_rate)} entran y compran**
+    - ¡Es el "sueño dorado" de cualquier farmacia!
+    
+    **¿Cuándo pasa esto?**
+    - 🏪 Excelente ubicación (esquina, cerca de hospitales, etc.)
+    - 🏬 Poca o nula competencia cerca
+    - 🚶 Mucho flujo peatonal (zonas comerciales, plazas)
+    - 💊 Servicio excepcional y clientes que te recomiendan
+    
+    **¿Es bueno o malo?**
+    - 👍 ¡Es el **mejor escenario posible**!
+    - ⚠️ Pero también el más **optimista** - difícil de lograr
+    - 💡 Si logras esto, tendrás un negocio muy exitoso
     """)
+
+# ¿Cómo afectan los escenarios a todos los números?
+st.markdown("### 📊 ¿Cómo afecta tu escenario a TODOS los números?")
+
+col_esc1, col_esc2, col_esc3 = st.columns(3)
+
+with col_esc1:
+    st.markdown("**🚶 Flujo Peatonal**")
+    st.metric("Personas/día", f"{flujo:,}")
+    if escenario == "Conservador":
+        st.caption("🔴 Ubicación con poco flujo")
+    elif escenario == "Medio":
+        st.caption("🟡 Flujo normal/regular")
+    else:
+        st.caption("🟢 Mucho flujo peatonal")
+
+with col_esc2:
+    st.markdown("**💳 Ticket Promedio**")
+    st.metric("Gasto/cliente", f"${ticket_prom:,.0f}")
+    if escenario == "Conservador":
+        st.caption("🔴 Clientes más cautelosos")
+    elif escenario == "Medio":
+        st.caption("🟡 Gasto promedio normal")
+    else:
+        st.caption("🟢 Clientes gastan más")
+
+with col_esc3:
+    st.markdown("**📈 Crecimiento**")
+    crec_anual = p.get("crec", 0) * 12 * 100
+    st.metric("Crecimiento anual", f"{crec_anual:.1f}%")
+    if escenario == "Conservador":
+        st.caption("🔴 Crecimiento lento")
+    elif escenario == "Medio":
+        st.caption("🟡 Crecimiento moderado")
+    else:
+        st.caption("🟢 Crecimiento acelerado")
+
+st.info(f"""
+**💡 En resumen:** El escenario **{escenario}** no solo afecta cuántos clientes te compran, 
+sino también cuánto gastan, qué tan rápido crece tu negocio, y qué márgenes puedes obtener.
+
+**¿Por qué?** En mejores ubicaciones puedes cobrar un poco más, los clientes compran más cosas, 
+y el boca a boca hace que crezcas más rápido. ¡Todo está conectado! 🔗
+""")
 
 st.markdown("---")
 
