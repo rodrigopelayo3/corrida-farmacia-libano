@@ -129,29 +129,30 @@ MODELOS = {
 # ANÁLISIS DE MÁRGENES POR CATEGORÍA (Como analista financiero de farmacias)
 # Genéricos: 35-45% margen | Patente: 15-25% margen | Abarrotes: 8-15% margen
 # Mix promedio ponderado según flujo y conversión por escenario
+# NOTA: Flujo = personas por DÍA
 
 PRESETS = {
     "🏪 Mini": {
-        "Conservador": {"flujo": 30, "conversion": 0.08, "ticket": 75, "cogs": 0.72, "gastos_fijos": 22000, "gastos_var": 0.03, "crec": 0.015},
-        "Medio":       {"flujo": 60, "conversion": 0.12, "ticket": 95, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.05, "crec": 0.03},
-        "Alto":        {"flujo": 100, "conversion": 0.16, "ticket": 120, "cogs": 0.65, "gastos_fijos": 35000, "gastos_var": 0.07, "crec": 0.045},
+        "Conservador": {"flujo": 150, "conversion": 0.08, "ticket": 75, "cogs": 0.72, "gastos_fijos": 22000, "gastos_var": 0.03, "crec": 0.015},
+        "Medio":       {"flujo": 300, "conversion": 0.12, "ticket": 95, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.05, "crec": 0.03},
+        "Alto":        {"flujo": 500, "conversion": 0.16, "ticket": 120, "cogs": 0.65, "gastos_fijos": 35000, "gastos_var": 0.07, "crec": 0.045},
     },
     "🩺 Consultorio": {
-        "Conservador": {"flujo": 45, "conversion": 0.09, "ticket": 85, "cogs": 0.70, "gastos_fijos": 35000, "gastos_var": 0.04, "crec": 0.02,
+        "Conservador": {"flujo": 250, "conversion": 0.09, "ticket": 85, "cogs": 0.70, "gastos_fijos": 35000, "gastos_var": 0.04, "crec": 0.02,
                         "consultas": 8, "surten": 0.60, "ticket_receta": 120, "ingreso_consulta": 40, "cogs_receta": 0.62},
-        "Medio":       {"flujo": 80, "conversion": 0.13, "ticket": 110, "cogs": 0.67, "gastos_fijos": 45000, "gastos_var": 0.06, "crec": 0.035,
+        "Medio":       {"flujo": 450, "conversion": 0.13, "ticket": 110, "cogs": 0.67, "gastos_fijos": 45000, "gastos_var": 0.06, "crec": 0.035,
                         "consultas": 15, "surten": 0.72, "ticket_receta": 180, "ingreso_consulta": 60, "cogs_receta": 0.58},
-        "Alto":        {"flujo": 140, "conversion": 0.17, "ticket": 150, "cogs": 0.63, "gastos_fijos": 58000, "gastos_var": 0.08, "crec": 0.05,
+        "Alto":        {"flujo": 700, "conversion": 0.17, "ticket": 150, "cogs": 0.63, "gastos_fijos": 58000, "gastos_var": 0.08, "crec": 0.05,
                         "consultas": 25, "surten": 0.85, "ticket_receta": 250, "ingreso_consulta": 85, "cogs_receta": 0.55},
     },
     "🛒 Super": {
-        "Conservador": {"flujo": 60, "conversion": 0.10, "ticket": 90, "cogs": 0.74, "gastos_fijos": 48000, "gastos_var": 0.04, "crec": 0.025,
+        "Conservador": {"flujo": 350, "conversion": 0.10, "ticket": 90, "cogs": 0.74, "gastos_fijos": 48000, "gastos_var": 0.04, "crec": 0.025,
                         "consultas": 10, "surten": 0.65, "ticket_receta": 140, "ingreso_consulta": 45, "cogs_receta": 0.62,
                         "abarrotes_pct": 0.15, "cogs_abarrotes": 0.90},
-        "Medio":       {"flujo": 110, "conversion": 0.14, "ticket": 120, "cogs": 0.69, "gastos_fijos": 62000, "gastos_var": 0.06, "crec": 0.04,
+        "Medio":       {"flujo": 600, "conversion": 0.14, "ticket": 120, "cogs": 0.69, "gastos_fijos": 62000, "gastos_var": 0.06, "crec": 0.04,
                         "consultas": 18, "surten": 0.75, "ticket_receta": 200, "ingreso_consulta": 70, "cogs_receta": 0.58,
                         "abarrotes_pct": 0.22, "cogs_abarrotes": 0.88},
-        "Alto":        {"flujo": 180, "conversion": 0.18, "ticket": 165, "cogs": 0.65, "gastos_fijos": 78000, "gastos_var": 0.08, "crec": 0.055,
+        "Alto":        {"flujo": 900, "conversion": 0.18, "ticket": 165, "cogs": 0.65, "gastos_fijos": 78000, "gastos_var": 0.08, "crec": 0.055,
                         "consultas": 30, "surten": 0.88, "ticket_receta": 280, "ingreso_consulta": 100, "cogs_receta": 0.55,
                         "abarrotes_pct": 0.32, "cogs_abarrotes": 0.85},
     },
@@ -253,16 +254,16 @@ cogs_abarrotes = p.get("cogs_abarrotes", 0.88)
 gastos_var = p["gastos_var"]  # Gastos variables
 
 with st.sidebar.expander("👥 ¿Cuánta gente pasa por tu local?", expanded=True):
-    st.caption("💡 Cuenta cuántas personas pasan frente a tu local en una hora típica")
+    st.caption("💡 Cuenta cuántas personas pasan frente a tu local en un día promedio")
     flujo = st.number_input(
-        "Personas por hora", 
-        10, 300, p["flujo"],
-        help="Promedio de gente que pasa caminando frente a tu local"
+        "Personas por día", 
+        100, 1500, p["flujo"],
+        help="Total de personas que pasan caminando frente a tu local en un día"
     )
     
     # Explicación visual
-    flujo_dia = flujo * 12  # asumiendo 12 horas
-    st.info(f"📊 Eso significa **~{flujo_dia:,} personas/día** pasando por tu local")
+    flujo_hora = flujo / 12  # promedio por hora
+    st.info(f"📊 Eso es **~{flujo_hora:.0f} personas/hora** en promedio")
 
 with st.sidebar.expander("🛒 ¿Cuánto compra cada cliente?", expanded=True):
     st.caption("💡 El ticket promedio es lo que gasta un cliente típico")
