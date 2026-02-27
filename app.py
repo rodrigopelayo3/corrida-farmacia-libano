@@ -622,7 +622,7 @@ else:  # Alto
 # ¿Cómo afectan los escenarios a todos los números?
 st.markdown("### 📊 ¿Cómo afecta tu escenario a TODOS los números?")
 
-col_esc1, col_esc2, col_esc3 = st.columns(3)
+col_esc1, col_esc2, col_esc3, col_esc4 = st.columns(4)
 
 with col_esc1:
     st.markdown("**🚶 Flujo Peatonal**")
@@ -635,6 +635,11 @@ with col_esc1:
         st.caption("🟢 Mucho flujo peatonal")
 
 with col_esc2:
+    st.markdown("**🕐 Horarios**")
+    st.metric("Horas operación", f"{horas_operacion}h")
+    st.caption(f"💡 {flujo_hora:.0f} personas/hora")
+
+with col_esc3:
     st.markdown("**💳 Ticket Promedio**")
     st.metric("Gasto/cliente", f"${ticket_prom:,.0f}")
     if escenario == "Conservador":
@@ -644,7 +649,7 @@ with col_esc2:
     else:
         st.caption("🟢 Clientes gastan más")
 
-with col_esc3:
+with col_esc4:
     st.markdown("**📈 Crecimiento**")
     crec_anual = p.get("crec", 0) * 12 * 100
     st.metric("Crecimiento anual", f"{crec_anual:.1f}%")
@@ -660,7 +665,10 @@ st.info(f"""
 sino también cuánto gastan, qué tan rápido crece tu negocio, y qué márgenes puedes obtener.
 
 **¿Por qué?** En mejores ubicaciones puedes cobrar un poco más, los clientes compran más cosas, 
-y el boca a boca hace que crezcas más rápido. ¡Todo está conectado! 🔗
+y el boca a boca hace que crezcas más rápido. 
+
+**💼 Horarios inteligentes:** Operar {horas_operacion} horas ({hora_apertura}:00-{hora_cierre}:00) te da 
+{flujo_hora:.0f} personas/hora - ajusta según tu zona para maximizar flujo vs costos. ¡Todo está conectado! 🔗
 """)
 
 st.markdown("---")
