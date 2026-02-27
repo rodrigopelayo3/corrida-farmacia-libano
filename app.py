@@ -121,35 +121,39 @@ def fmt_dinero(valor):
 # PRESETS POR MODELO DE FRANQUICIA Y ESCENARIO
 # ═══════════════════════════════════════════════════════════════════════════════
 MODELOS = {
-    "🏪 Mini": {"consultorio": False, "abarrotes": False, "inversion": 180000},
-    "🩺 Consultorio": {"consultorio": True, "abarrotes": False, "inversion": 280000},
-    "🛒 Super": {"consultorio": True, "abarrotes": True, "inversion": 420000},
+    "🏪 Mini": {"consultorio": False, "abarrotes": False, "inversion": 570000},
+    "🩺 Consultorio": {"consultorio": True, "abarrotes": False, "inversion": 700000},
+    "🛒 Super": {"consultorio": True, "abarrotes": True, "inversion": 950000},
 }
+
+# ANÁLISIS DE MÁRGENES POR CATEGORÍA (Como analista financiero de farmacias)
+# Genéricos: 35-45% margen | Patente: 15-25% margen | Abarrotes: 8-15% margen
+# Mix promedio ponderado según flujo y conversión por escenario
 
 PRESETS = {
     "🏪 Mini": {
-        "Conservador": {"flujo": 25, "conversion": 0.06, "ticket": 60, "cogs": 0.82, "gastos_fijos": 18000, "gastos_var": 0.02, "crec": 0.01},
-        "Medio":       {"flujo": 50, "conversion": 0.09, "ticket": 80, "cogs": 0.75, "gastos_fijos": 22000, "gastos_var": 0.04, "crec": 0.025},
-        "Alto":        {"flujo": 90, "conversion": 0.12, "ticket": 110, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.06, "crec": 0.04},
+        "Conservador": {"flujo": 30, "conversion": 0.08, "ticket": 75, "cogs": 0.72, "gastos_fijos": 22000, "gastos_var": 0.03, "crec": 0.015},
+        "Medio":       {"flujo": 60, "conversion": 0.12, "ticket": 95, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.05, "crec": 0.03},
+        "Alto":        {"flujo": 100, "conversion": 0.16, "ticket": 120, "cogs": 0.65, "gastos_fijos": 35000, "gastos_var": 0.07, "crec": 0.045},
     },
     "🩺 Consultorio": {
-        "Conservador": {"flujo": 35, "conversion": 0.07, "ticket": 70, "cogs": 0.80, "gastos_fijos": 28000, "gastos_var": 0.03, "crec": 0.015,
-                        "consultas": 5, "surten": 0.50, "ticket_receta": 100, "ingreso_consulta": 30, "cogs_receta": 0.78},
-        "Medio":       {"flujo": 70, "conversion": 0.10, "ticket": 95, "cogs": 0.73, "gastos_fijos": 38000, "gastos_var": 0.05, "crec": 0.03,
-                        "consultas": 10, "surten": 0.65, "ticket_receta": 150, "ingreso_consulta": 50, "cogs_receta": 0.72},
-        "Alto":        {"flujo": 130, "conversion": 0.13, "ticket": 135, "cogs": 0.66, "gastos_fijos": 48000, "gastos_var": 0.07, "crec": 0.05,
-                        "consultas": 18, "surten": 0.80, "ticket_receta": 220, "ingreso_consulta": 70, "cogs_receta": 0.65},
+        "Conservador": {"flujo": 45, "conversion": 0.09, "ticket": 85, "cogs": 0.70, "gastos_fijos": 35000, "gastos_var": 0.04, "crec": 0.02,
+                        "consultas": 8, "surten": 0.60, "ticket_receta": 120, "ingreso_consulta": 40, "cogs_receta": 0.62},
+        "Medio":       {"flujo": 80, "conversion": 0.13, "ticket": 110, "cogs": 0.67, "gastos_fijos": 45000, "gastos_var": 0.06, "crec": 0.035,
+                        "consultas": 15, "surten": 0.72, "ticket_receta": 180, "ingreso_consulta": 60, "cogs_receta": 0.58},
+        "Alto":        {"flujo": 140, "conversion": 0.17, "ticket": 150, "cogs": 0.63, "gastos_fijos": 58000, "gastos_var": 0.08, "crec": 0.05,
+                        "consultas": 25, "surten": 0.85, "ticket_receta": 250, "ingreso_consulta": 85, "cogs_receta": 0.55},
     },
     "🛒 Super": {
-        "Conservador": {"flujo": 45, "conversion": 0.08, "ticket": 75, "cogs": 0.80, "gastos_fijos": 38000, "gastos_var": 0.03, "crec": 0.02,
-                        "consultas": 6, "surten": 0.55, "ticket_receta": 110, "ingreso_consulta": 35, "cogs_receta": 0.78,
-                        "abarrotes_pct": 0.12, "cogs_abarrotes": 0.90},
-        "Medio":       {"flujo": 90, "conversion": 0.11, "ticket": 100, "cogs": 0.72, "gastos_fijos": 50000, "gastos_var": 0.05, "crec": 0.035,
-                        "consultas": 12, "surten": 0.68, "ticket_receta": 160, "ingreso_consulta": 55, "cogs_receta": 0.70,
-                        "abarrotes_pct": 0.18, "cogs_abarrotes": 0.87},
-        "Alto":        {"flujo": 160, "conversion": 0.14, "ticket": 145, "cogs": 0.65, "gastos_fijos": 65000, "gastos_var": 0.07, "crec": 0.05,
-                        "consultas": 20, "surten": 0.82, "ticket_receta": 240, "ingreso_consulta": 80, "cogs_receta": 0.62,
-                        "abarrotes_pct": 0.28, "cogs_abarrotes": 0.84},
+        "Conservador": {"flujo": 60, "conversion": 0.10, "ticket": 90, "cogs": 0.74, "gastos_fijos": 48000, "gastos_var": 0.04, "crec": 0.025,
+                        "consultas": 10, "surten": 0.65, "ticket_receta": 140, "ingreso_consulta": 45, "cogs_receta": 0.62,
+                        "abarrotes_pct": 0.15, "cogs_abarrotes": 0.90},
+        "Medio":       {"flujo": 110, "conversion": 0.14, "ticket": 120, "cogs": 0.69, "gastos_fijos": 62000, "gastos_var": 0.06, "crec": 0.04,
+                        "consultas": 18, "surten": 0.75, "ticket_receta": 200, "ingreso_consulta": 70, "cogs_receta": 0.58,
+                        "abarrotes_pct": 0.22, "cogs_abarrotes": 0.88},
+        "Alto":        {"flujo": 180, "conversion": 0.18, "ticket": 165, "cogs": 0.65, "gastos_fijos": 78000, "gastos_var": 0.08, "crec": 0.055,
+                        "consultas": 30, "surten": 0.88, "ticket_receta": 280, "ingreso_consulta": 100, "cogs_receta": 0.55,
+                        "abarrotes_pct": 0.32, "cogs_abarrotes": 0.85},
     },
 }
 
@@ -180,60 +184,33 @@ st.sidebar.markdown("---")
 # INVERSIÓN INICIAL EDITABLE
 # ═══════════════════════════════════════════════════════════════════════════════
 with st.sidebar.expander("💰 Inversión Inicial", expanded=False):
-    st.caption("Personaliza la inversión inicial")
+    st.caption(f"Inversión total para {modelo}")
     
-    # Presets de inversión por modelo
-    inv_presets = {
-        "🏪 Mini": {"Local": 50000, "Inventario": 80000, "Equipo": 30000, "Permisos": 15000, "Capital trabajo": 5000},
-        "🩺 Consultorio": {"Local": 80000, "Inventario": 100000, "Equipo": 50000, "Consultorio": 30000, "Permisos": 15000, "Capital trabajo": 5000},
-        "🛒 Super": {"Local": 120000, "Inventario": 150000, "Equipo": 70000, "Consultorio": 35000, "Abarrotes": 25000, "Permisos": 15000, "Capital trabajo": 5000},
-    }
+    # Inicializar inversión personalizada
+    if "inversion_personalizada" not in st.session_state:
+        st.session_state.inversion_personalizada = m["inversion"]
     
-    inv_default = inv_presets[modelo]
+    inversion_input = st.number_input(
+        f"Inversión Total - {modelo}",
+        min_value=100000,
+        value=st.session_state.inversion_personalizada,
+        step=10000,
+        help="Incluye local, inventario, equipo, permisos y capital de trabajo"
+    )
     
-    # Inicializar estado de inversión
-    if "inversion_items" not in st.session_state or st.session_state.get("modelo_anterior") != modelo:
-        st.session_state.inversion_items = inv_default.copy()
-        st.session_state.modelo_anterior = modelo
+    st.session_state.inversion_personalizada = inversion_input
     
-    # Mostrar items de inversión
-    inversion_total = 0
-    items_inv = list(st.session_state.inversion_items.keys())
-    
-    for item in items_inv:
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            nuevo_valor = st.number_input(
-                item, 
-                min_value=0, 
-                value=st.session_state.inversion_items[item],
-                step=1000,
-                key=f"inv_{item}"
-            )
-            st.session_state.inversion_items[item] = nuevo_valor
-        with col2:
-            if st.button("🗑️", key=f"del_inv_{item}"):
-                del st.session_state.inversion_items[item]
-                st.rerun()
-        inversion_total += nuevo_valor
-    
-    # Agregar nuevo concepto
-    st.markdown("---")
-    col_add1, col_add2 = st.columns([2, 1])
-    with col_add1:
-        nuevo_concepto_inv = st.text_input("Nuevo concepto", key="new_inv_concept", placeholder="Ej: Remodelación")
-    with col_add2:
-        nuevo_monto_inv = st.number_input("Monto", min_value=0, value=0, step=1000, key="new_inv_amount")
-    
-    if st.button("➕ Agregar concepto", key="add_inv"):
-        if nuevo_concepto_inv and nuevo_monto_inv > 0:
-            st.session_state.inversion_items[nuevo_concepto_inv] = nuevo_monto_inv
-            st.rerun()
-    
-    st.markdown(f"**💵 Total Inversión: ${inversion_total:,}**")
+    # Mostrar comparación con preset
+    diferencia = inversion_input - m["inversion"]
+    if diferencia > 0:
+        st.info(f"📈 +${diferencia:,} sobre precio base")
+    elif diferencia < 0:
+        st.success(f"📉 ${abs(diferencia):,} menos que precio base")
+    else:
+        st.info("💰 Precio base estándar")
 
-# Usar inversión calculada
-inversion = sum(st.session_state.inversion_items.values()) if "inversion_items" in st.session_state else m["inversion"]
+# Usar inversión personalizada
+inversion = st.session_state.inversion_personalizada
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INPUTS SIMPLIFICADOS (Los % técnicos se manejan automáticamente)
@@ -516,6 +493,43 @@ st.markdown(f'''
 st.title(f"📊 Corrida Financiera - {modelo}")
 st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,}")
 
+# Análisis de flujo y conversión
+st.markdown("### 👥 Análisis de Flujo Peatonal")
+personas_dia = flujo
+conversion_rate = conversion * 100
+
+col_flujo1, col_flujo2, col_flujo3 = st.columns(3)
+with col_flujo1:
+    st.metric("🚶 Pasan por día", f"{personas_dia:,}")
+    st.caption("Flujo peatonal diario")
+    
+with col_flujo2:
+    st.metric("🛍️ Te compran", f"{clientes_mes:,}/mes")
+    st.caption(f"Solo {conversion_rate:.1f}% del flujo compra")
+    
+with col_flujo3:
+    st.metric("💳 Ticket promedio", f"${ticket_prom:,.0f}")
+    st.caption("Lo que gasta cada cliente")
+
+# Explicación del % de conversión por escenario
+if escenario == "Conservador":
+    st.info(f"""
+    🎯 **Escenario Conservador ({conversion_rate:.1f}% conversión)**: 
+    De cada 100 personas que pasan, solo {int(conversion_rate)} compran. Es normal en ubicaciones nuevas o competitivas.
+    """)
+elif escenario == "Medio":
+    st.success(f"""
+    🎯 **Escenario Medio ({conversion_rate:.1f}% conversión)**: 
+    De cada 100 personas que pasan, {int(conversion_rate)} compran. Buena ubicación y servicio establecido.
+    """)
+else:  # Alto
+    st.success(f"""
+    🎯 **Escenario Alto ({conversion_rate:.1f}% conversión)**: 
+    De cada 100 personas que pasan, {int(conversion_rate)} compran. Excelente ubicación, alta fidelidad de clientes.
+    """)
+
+st.markdown("---")
+
 # Validaciones claras
 if contribucion <= 0:
     st.error("❌ Los números no cuadran. Los costos son muy altos para generar ganancia.")
@@ -600,6 +614,42 @@ for i, (k, v) in enumerate(desglose.items()):
     with col_desg[i]:
         st.metric(k, f"${v:,.0f}")
         st.caption(f"{pct:.0f}% de tus ventas")
+
+# Análisis de márgenes por categoría (como analista financiero)
+st.markdown("### 📈 Análisis de Márgenes por Categoría")
+st.markdown("""
+**Como analista financiero especializado en farmacias, estos son los márgenes optimizados:**
+
+- **💊 Medicamentos Genéricos**: 35-45% margen (Mayor volumen, competencia alta)
+- **💉 Medicamentos Patente**: 15-25% margen (Precios controlados, menor flexibilidad)  
+- **🛒 Abarrotes**: 8-15% margen (Atrae tráfico, pero rentabilidad baja)
+- **🩺 Consultas Médicas**: 75-80% margen (Solo costos de insumos básicos)
+
+**Tu mix actual considera:**""")
+
+col_mg1, col_mg2, col_mg3 = st.columns(3)
+with col_mg1:
+    margen_farmacia = (1 - cogs) * 100
+    st.metric("💊 Margen Farmacia", f"{margen_farmacia:.0f}%")
+    st.caption("Mix genéricos/patente optimizado")
+
+with col_mg2:
+    if m["consultorio"]:
+        margen_recetas = (1 - cogs_receta) * 100
+        st.metric("💉 Margen Recetas", f"{margen_recetas:.0f}%")
+        st.caption("Recetas médicas especializadas")
+    else:
+        st.metric("💉 Recetas", "N/A")
+        st.caption("No aplica en este modelo")
+
+with col_mg3:
+    if m["abarrotes"]:
+        margen_abarrotes = (1 - p.get("cogs_abarrotes", 0.9)) * 100
+        st.metric("🛒 Margen Abarrotes", f"{margen_abarrotes:.0f}%")
+        st.caption("Productos de conveniencia")
+    else:
+        st.metric("🛒 Abarrotes", "N/A")
+        st.caption("No aplica en este modelo")
 
 # ¿En qué se va el dinero?
 st.markdown("### 💸 ¿En qué se va el dinero?")
