@@ -255,6 +255,17 @@ gastos_var = p["gastos_var"]  # Gastos variables
 
 with st.sidebar.expander("👥 ¿Cuánta gente pasa por tu local?", expanded=True):
     st.caption("💡 Cuenta cuántas personas pasan frente a tu local en un día promedio")
+    
+    # Horarios de operación
+    col_h1, col_h2 = st.columns(2)
+    with col_h1:
+        hora_apertura = st.number_input("Hora apertura", 6, 12, 8, help="¿A qué hora abres?")
+    with col_h2:
+        hora_cierre = st.number_input("Hora cierre", 18, 24, 20, help="¿A qué hora cierras?")
+    
+    horas_operacion = hora_cierre - hora_apertura
+    st.caption(f"🕰️ Operas {horas_operacion} horas por día ({hora_apertura}:00 - {hora_cierre}:00)")
+    
     flujo = st.number_input(
         "Personas por día", 
         100, 1500, p["flujo"],
@@ -262,8 +273,8 @@ with st.sidebar.expander("👥 ¿Cuánta gente pasa por tu local?", expanded=Tru
     )
     
     # Explicación visual
-    flujo_hora = flujo / 12  # promedio por hora
-    st.info(f"📊 Eso es **~{flujo_hora:.0f} personas/hora** en promedio")
+    flujo_hora = flujo / horas_operacion  # promedio por hora durante operación
+    st.info(f"📊 Eso es **~{flujo_hora:.0f} personas/hora** durante las {horas_operacion}h de operación")
 
 with st.sidebar.expander("🛒 ¿Cuánto compra cada cliente?", expanded=True):
     st.caption("💡 El ticket promedio es lo que gasta un cliente típico")
@@ -422,6 +433,8 @@ est_vector = np.ones(12)
 dias = 28
 conversion = p["conversion"]
 
+# Horarios ya definidos arriba en el sidebar
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CÁLCULOS - MES BASE
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -525,7 +538,7 @@ st.markdown(f'''
 ''', unsafe_allow_html=True)
 
 st.title(f"📊 Corrida Financiera - {modelo}")
-st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,}")
+st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,} | **Horario:** {hora_apertura}:00-{hora_cierre}:00 ({horas_operacion}h)
 
 # Análisis de flujo y conversión
 st.markdown("### 👥 Análisis de Flujo Peatonal")
@@ -892,6 +905,7 @@ def generar_reporte_pdf():
     <b>Modelo de Franquicia:</b> {modelo}<br/>
     <b>Escenario Analizado:</b> {escenario}<br/>
     <b>Inversión Requerida:</b> ${inversion:,}<br/>
+    <b>Horarios de Operación:</b> {hora_apertura}:00 - {hora_cierre}:00 ({horas_operacion} horas/día)<br/>
     <b>Fecha de Análisis:</b> {pd.Timestamp.now().strftime('%d/%m/%Y')}<br/>
     """
     story.append(Paragraph(modelo_info, styles['Normal']))
