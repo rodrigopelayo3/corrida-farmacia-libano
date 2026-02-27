@@ -418,14 +418,13 @@ with st.sidebar.expander("📈 Crecimiento esperado", expanded=False):
 est_vector = np.ones(12)
 
 # Valores fijos de operación (simplificados)
-horas = 12
 dias = 28
 conversion = p["conversion"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CÁLCULOS - MES BASE
 # ═══════════════════════════════════════════════════════════════════════════════
-flujo_mes = flujo * horas * dias
+flujo_mes = flujo * dias  # flujo ya es por DÍA, solo multiplicar por días del mes
 clientes_mes = int(flujo_mes * conversion)
 
 # Ventas
