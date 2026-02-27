@@ -448,6 +448,10 @@ gastos_variables = ventas_totales * gastos_var
 utilidad_neta = utilidad_bruta - gastos_fijos - gastos_variables
 margen_neto = utilidad_neta / ventas_totales if ventas_totales > 0 else 0
 
+# Ticket promedio ponderado (todas las fuentes de ingreso)
+clientes_totales = clientes_mes + (consultas_mes if m["consultorio"] else 0)
+ticket_prom = ventas_totales / clientes_totales if clientes_totales > 0 else 0
+
 # Break-even
 contribucion = 1 - cogs - gastos_var
 if contribucion > 0:
