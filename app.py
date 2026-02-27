@@ -1,6 +1,19 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import io
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.linecharts import HorizontalLineChart
+from reportlab.graphics.charts.legends import Legend
+import matplotlib.pyplot as plt
+import io
+import base64
 
 st.set_page_config(
     page_title="Corrida Financiera - Farmacia Líbano",
@@ -670,6 +683,226 @@ st.markdown(f"""
 - ⏱️ En **{meses_recuperacion:.0f} meses** ({meses_recuperacion/12:.1f} años) recuperas lo que invertiste
 - 🎯 Necesitas vender mínimo **${ventas_be:,.0f}/mes** para no perder dinero
 """)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERADOR DE REPORTE PDF
+# ═══════════════════════════════════════════════════════════════════════════════
+def generar_reporte_pdf():
+    """Genera un reporte PDF profesional con todos los datos financieros"""
+    
+    # Buffer para el PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], 
+                                fontSize=24, spaceAfter=30, textColor=colors.Color(0, 0.239, 0.478))
+    
+    heading_style = ParagraphStyle('CustomHeading', parent=styles['Heading2'], 
+                                  fontSize=16, spaceAfter=12, textColor=colors.Color(0, 0.651, 0.318))
+    
+    # Contenido del PDF
+    story = []
+    
+    # Encabezado
+    story.append(Paragraph("<b>+FARMACIA LÍBANO</b>", title_style))
+    story.append(Paragraph("Corrida Financiera - Reporte Ejecutivo", styles['Heading2']))
+    story.append(Spacer(1, 12))
+    
+    # Información del modelo
+    modelo_info = f"""
+    <b>Modelo:</b> {modelo}<br/>
+    <b>Escenario:</b> {escenario}<br/>
+    <b>Fecha:</b> {pd.Timestamp.now().strftime('%d/%m/%Y')}<br/>
+    <b>Inversión:</b> ${inversion:,}<br/>
+    """
+    story.append(Paragraph(modelo_info, styles['Normal']))
+    story.append(Spacer(1, 20))
+    
+    # Resumen ejecutivo
+    story.append(Paragraph("📊 Resumen Ejecutivo", heading_style))
+    
+    # Tabla de métricas principales
+    metricas_data = [
+        ['Métrica', 'Valor'],
+        ['Clientes por mes', f'{clientes_mes:,}'],
+        ['Ventas mensuales', f'${ventas_totales:,.0f}'],
+        ['Utilidad neta mensual', f'${utilidad_neta:,.0f}'],
+        ['Margen neto', f'{margen_neto*100:.1f}%'],
+        ['ROI anual', f'{roi_anual*100:.1f}%'],
+        ['Recuperación (meses)', f'{meses_recuperacion:.1f}'],
+        ['Break-even ventas', f'${ventas_be:,.0f}'],
+        ['Ventas anuales', f'${ventas_anual:,.0f}'],
+        ['Utilidad anual', f'${util_anual:,.0f}'],
+    ]
+    
+    metricas_table = Table(metricas_data, colWidths=[3*inch, 2*inch])
+    metricas_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.651, 0.318)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    story.append(metricas_table)
+    story.append(Spacer(1, 20))
+    
+    # Desglose de ventas
+    story.append(Paragraph("💵 Desglose de Ventas Mensuales", heading_style))
+    
+    ventas_data = [['Concepto', 'Monto', '% del Total']]
+    ventas_data.append(['Farmacia', f'${ventas_farmacia:,.0f}', f'{(ventas_farmacia/ventas_totales*100):.1f}%'])
+    
+    if m["consultorio"]:
+        ventas_data.append(['Recetas', f'${ventas_recetas:,.0f}', f'{(ventas_recetas/ventas_totales*100):.1f}%'])
+        ventas_data.append(['Consultas', f'${ingresos_consulta:,.0f}', f'{(ingresos_consulta/ventas_totales*100):.1f}%'])
+    
+    if m["abarrotes"]:
+        ventas_data.append(['Abarrotes', f'${ventas_abarrotes:,.0f}', f'{(ventas_abarrotes/ventas_totales*100):.1f}%'])
+    
+    ventas_data.append(['TOTAL', f'${ventas_totales:,.0f}', '100.0%'])
+    
+    ventas_table = Table(ventas_data, colWidths=[2*inch, 2*inch, 1*inch])
+    ventas_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.651, 0.318)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    story.append(ventas_table)
+    story.append(Spacer(1, 20))
+    
+    # Proyección 12 meses (resumida - solo alguns meses clave)
+    story.append(Paragraph("📅 Proyección 12 Meses (Trimestral)", heading_style))
+    
+    proy_data = [['Mes', 'Ventas', 'Utilidad Neta', 'Margen %']]
+    for i in [0, 2, 5, 8, 11]:  # Meses 1, 3, 6, 9, 12
+        proy_data.append([
+            f'Mes {i+1}',
+            proyeccion[i]['Ventas'],
+            proyeccion[i]['Util. Neta'],
+            proyeccion[i]['Margen %']
+        ])
+    
+    proy_table = Table(proy_data, colWidths=[1*inch, 1.5*inch, 1.5*inch, 1*inch])
+    proy_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.651, 0.318)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    story.append(proy_table)
+    story.append(Spacer(1, 20))
+    
+    # Inversión y gastos fijos
+    if "inversion_items" in st.session_state:
+        story.append(Paragraph("💰 Desglose de Inversión Inicial", heading_style))
+        
+        inv_data = [['Concepto', 'Monto']]
+        for concepto, monto in st.session_state.inversion_items.items():
+            inv_data.append([concepto, f'${monto:,}'])
+        inv_data.append(['TOTAL', f'${inversion:,}'])
+        
+        inv_table = Table(inv_data, colWidths=[3*inch, 2*inch])
+        inv_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.239, 0.478)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        story.append(inv_table)
+        story.append(Spacer(1, 20))
+    
+    # Gastos fijos
+    if "gastos_fijos_items" in st.session_state:
+        story.append(Paragraph("🏢 Gastos Fijos Mensuales", heading_style))
+        
+        gf_data = [['Concepto', 'Monto']]
+        for concepto, monto in st.session_state.gastos_fijos_items.items():
+            gf_data.append([concepto, f'${monto:,}'])
+        gf_data.append(['TOTAL', f'${gastos_fijos:,}'])
+        
+        gf_table = Table(gf_data, colWidths=[3*inch, 2*inch])
+        gf_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.239, 0.478)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        story.append(gf_table)
+    
+    # Conclusiones
+    story.append(Spacer(1, 20))
+    story.append(Paragraph("🎯 Conclusiones", heading_style))
+    
+    if utilidad_neta > 0 and meses_recuperacion < 24:
+        conclusion = "✅ <b>NEGOCIO RENTABLE:</b> Genera utilidades positivas con recuperación de inversión en menos de 2 años."
+    elif utilidad_neta > 0:
+        conclusion = "⚠️ <b>RENTABLE CON RESERVAS:</b> Genera utilidades pero la recuperación de inversión es lenta."
+    else:
+        conclusion = "❌ <b>NO RENTABLE:</b> El negocio no genera utilidades suficientes con los parámetros actuales."
+    
+    story.append(Paragraph(conclusion, styles['Normal']))
+    
+    # Pie de página
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("<i>Reporte generado por Motor de Corrida Financiera - Farmacia Líbano</i>", styles['Normal']))
+    
+    # Construir PDF
+    doc.build(story)
+    
+    # Retornar el PDF
+    buffer.seek(0)
+    return buffer.getvalue()
+
+# Botón de descarga del reporte
+st.markdown("---")
+st.markdown("### 📄 Descargar Reporte")
+
+col_pdf1, col_pdf2 = st.columns([1, 3])
+with col_pdf1:
+    if st.button("📥 Generar PDF", type="primary"):
+        with st.spinner("Generando reporte PDF..."):
+            pdf_bytes = generar_reporte_pdf()
+            st.download_button(
+                label="📄 Descargar Reporte PDF", 
+                data=pdf_bytes,
+                file_name=f"corrida_financiera_{modelo.replace(' ', '_').lower()}_{escenario.lower()}.pdf",
+                mime="application/pdf"
+            )
+with col_pdf2:
+    st.caption("Genera un reporte PDF profesional con todos los datos financieros, proyecciones y análisis completo.")
 
 # Advertencias útiles
 if meses_recuperacion > 24:
