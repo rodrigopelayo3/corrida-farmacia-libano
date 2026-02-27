@@ -1,0 +1,680 @@
+import streamlit as st
+import numpy as np
+import pandas as pd
+
+st.set_page_config(
+    page_title="Corrida Financiera - Farmacia Líbano",
+    page_icon="💊",
+    layout="wide"
+)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COLORES Y ESTILO FARMACIA LÍBANO
+# ═══════════════════════════════════════════════════════════════════════════════
+VERDE = "#00A651"
+AZUL = "#003D7A"
+
+st.markdown(f"""
+<style>
+    /* Header y títulos */
+    .main h1 {{
+        color: {AZUL} !important;
+    }}
+    .main h2, .main h3 {{
+        color: {VERDE} !important;
+    }}
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {{
+        background: linear-gradient(180deg, {AZUL} 0%, #002952 100%);
+    }}
+    [data-testid="stSidebar"] * {{
+        color: white !important;
+    }}
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] .stNumberInput label,
+    [data-testid="stSidebar"] .stSlider label {{
+        color: white !important;
+        font-weight: 500;
+    }}
+    
+    /* Metrics */
+    [data-testid="stMetricValue"] {{
+        color: {AZUL} !important;
+        font-weight: bold;
+    }}
+    [data-testid="stMetricDelta"] {{
+        color: {VERDE} !important;
+    }}
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 8px;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        background-color: white;
+        border: 2px solid {VERDE};
+        border-radius: 8px;
+        color: {VERDE};
+        font-weight: 600;
+    }}
+    .stTabs [aria-selected="true"] {{
+        background-color: {VERDE} !important;
+        color: white !important;
+    }}
+    
+    /* Info boxes */
+    .stAlert {{
+        border-left: 4px solid {VERDE};
+    }}
+    
+    /* Expander */
+    .streamlit-expanderHeader {{
+        font-weight: 600;
+        color: white !important;
+    }}
+    
+    /* Logo header */
+    .logo-header {{
+        text-align: center;
+        padding: 10px;
+        margin-bottom: 20px;
+    }}
+    .logo-text {{
+        font-size: 28px;
+        font-weight: bold;
+    }}
+    .logo-green {{
+        color: {VERDE};
+    }}
+    .logo-blue {{
+        color: {AZUL};
+    }}
+    .logo-slogan {{
+        font-style: italic;
+        color: {AZUL};
+        font-size: 14px;
+    }}
+</style>
+""", unsafe_allow_html=True)
+
+# Función para formatear dinero
+def fmt_dinero(valor):
+    if valor >= 1_000_000:
+        return f"${valor:,.0f}"
+    return f"${valor:,.0f}"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PRESETS POR MODELO DE FRANQUICIA Y ESCENARIO
+# ═══════════════════════════════════════════════════════════════════════════════
+MODELOS = {
+    "🏪 Mini": {"consultorio": False, "abarrotes": False, "inversion": 180000},
+    "🩺 Consultorio": {"consultorio": True, "abarrotes": False, "inversion": 280000},
+    "🛒 Super": {"consultorio": True, "abarrotes": True, "inversion": 420000},
+}
+
+PRESETS = {
+    "🏪 Mini": {
+        "Conservador": {"flujo": 25, "conversion": 0.06, "ticket": 60, "cogs": 0.82, "gastos_fijos": 18000, "gastos_var": 0.02, "crec": 0.01},
+        "Medio":       {"flujo": 50, "conversion": 0.09, "ticket": 80, "cogs": 0.75, "gastos_fijos": 22000, "gastos_var": 0.04, "crec": 0.025},
+        "Alto":        {"flujo": 90, "conversion": 0.12, "ticket": 110, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.06, "crec": 0.04},
+    },
+    "🩺 Consultorio": {
+        "Conservador": {"flujo": 35, "conversion": 0.07, "ticket": 70, "cogs": 0.80, "gastos_fijos": 28000, "gastos_var": 0.03, "crec": 0.015,
+                        "consultas": 5, "surten": 0.50, "ticket_receta": 100, "ingreso_consulta": 30, "cogs_receta": 0.78},
+        "Medio":       {"flujo": 70, "conversion": 0.10, "ticket": 95, "cogs": 0.73, "gastos_fijos": 38000, "gastos_var": 0.05, "crec": 0.03,
+                        "consultas": 10, "surten": 0.65, "ticket_receta": 150, "ingreso_consulta": 50, "cogs_receta": 0.72},
+        "Alto":        {"flujo": 130, "conversion": 0.13, "ticket": 135, "cogs": 0.66, "gastos_fijos": 48000, "gastos_var": 0.07, "crec": 0.05,
+                        "consultas": 18, "surten": 0.80, "ticket_receta": 220, "ingreso_consulta": 70, "cogs_receta": 0.65},
+    },
+    "🛒 Super": {
+        "Conservador": {"flujo": 45, "conversion": 0.08, "ticket": 75, "cogs": 0.80, "gastos_fijos": 38000, "gastos_var": 0.03, "crec": 0.02,
+                        "consultas": 6, "surten": 0.55, "ticket_receta": 110, "ingreso_consulta": 35, "cogs_receta": 0.78,
+                        "abarrotes_pct": 0.12, "cogs_abarrotes": 0.90},
+        "Medio":       {"flujo": 90, "conversion": 0.11, "ticket": 100, "cogs": 0.72, "gastos_fijos": 50000, "gastos_var": 0.05, "crec": 0.035,
+                        "consultas": 12, "surten": 0.68, "ticket_receta": 160, "ingreso_consulta": 55, "cogs_receta": 0.70,
+                        "abarrotes_pct": 0.18, "cogs_abarrotes": 0.87},
+        "Alto":        {"flujo": 160, "conversion": 0.14, "ticket": 145, "cogs": 0.65, "gastos_fijos": 65000, "gastos_var": 0.07, "crec": 0.05,
+                        "consultas": 20, "surten": 0.82, "ticket_receta": 240, "ingreso_consulta": 80, "cogs_receta": 0.62,
+                        "abarrotes_pct": 0.28, "cogs_abarrotes": 0.84},
+    },
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR - CONFIGURACIÓN
+# ═══════════════════════════════════════════════════════════════════════════════
+st.sidebar.markdown(f'''
+<div style="text-align: center; padding: 10px 0 20px 0;">
+    <div style="font-size: 22px; font-weight: bold;">
+        <span style="color: {VERDE};">+FARMACIA</span> 
+        <span style="color: white;">LÍBANO</span>
+    </div>
+    <div style="font-style: italic; font-size: 11px; color: #aaa;">Siempre al cuidado de tu salud</div>
+</div>
+''', unsafe_allow_html=True)
+
+st.sidebar.markdown("### ⚙️ Configuración")
+
+# Modelo y escenario
+modelo = st.sidebar.selectbox("Modelo de Franquicia", list(MODELOS.keys()))
+escenario = st.sidebar.selectbox("Escenario", ["Conservador", "Medio", "Alto"], index=1)
+p = PRESETS[modelo][escenario]
+m = MODELOS[modelo]
+
+st.sidebar.markdown("---")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INVERSIÓN INICIAL EDITABLE
+# ═══════════════════════════════════════════════════════════════════════════════
+with st.sidebar.expander("💰 Inversión Inicial", expanded=False):
+    st.caption("Personaliza la inversión inicial")
+    
+    # Presets de inversión por modelo
+    inv_presets = {
+        "🏪 Mini": {"Local": 50000, "Inventario": 80000, "Equipo": 30000, "Permisos": 15000, "Capital trabajo": 5000},
+        "🩺 Consultorio": {"Local": 80000, "Inventario": 100000, "Equipo": 50000, "Consultorio": 30000, "Permisos": 15000, "Capital trabajo": 5000},
+        "🛒 Super": {"Local": 120000, "Inventario": 150000, "Equipo": 70000, "Consultorio": 35000, "Abarrotes": 25000, "Permisos": 15000, "Capital trabajo": 5000},
+    }
+    
+    inv_default = inv_presets[modelo]
+    
+    # Inicializar estado de inversión
+    if "inversion_items" not in st.session_state or st.session_state.get("modelo_anterior") != modelo:
+        st.session_state.inversion_items = inv_default.copy()
+        st.session_state.modelo_anterior = modelo
+    
+    # Mostrar items de inversión
+    inversion_total = 0
+    items_inv = list(st.session_state.inversion_items.keys())
+    
+    for item in items_inv:
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            nuevo_valor = st.number_input(
+                item, 
+                min_value=0, 
+                value=st.session_state.inversion_items[item],
+                step=1000,
+                key=f"inv_{item}"
+            )
+            st.session_state.inversion_items[item] = nuevo_valor
+        with col2:
+            if st.button("🗑️", key=f"del_inv_{item}"):
+                del st.session_state.inversion_items[item]
+                st.rerun()
+        inversion_total += nuevo_valor
+    
+    # Agregar nuevo concepto
+    st.markdown("---")
+    col_add1, col_add2 = st.columns([2, 1])
+    with col_add1:
+        nuevo_concepto_inv = st.text_input("Nuevo concepto", key="new_inv_concept", placeholder="Ej: Remodelación")
+    with col_add2:
+        nuevo_monto_inv = st.number_input("Monto", min_value=0, value=0, step=1000, key="new_inv_amount")
+    
+    if st.button("➕ Agregar concepto", key="add_inv"):
+        if nuevo_concepto_inv and nuevo_monto_inv > 0:
+            st.session_state.inversion_items[nuevo_concepto_inv] = nuevo_monto_inv
+            st.rerun()
+    
+    st.markdown(f"**💵 Total Inversión: ${inversion_total:,}**")
+
+# Usar inversión calculada
+inversion = sum(st.session_state.inversion_items.values()) if "inversion_items" in st.session_state else m["inversion"]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INPUTS SIMPLIFICADOS (Los % técnicos se manejan automáticamente)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Parámetros técnicos automáticos (según escenario - el usuario NO los ve)
+cogs = p["cogs"]  # Costo de mercancía
+cogs_receta = p.get("cogs_receta", cogs)
+cogs_abarrotes = p.get("cogs_abarrotes", 0.88)
+gastos_var = p["gastos_var"]  # Gastos variables
+
+with st.sidebar.expander("👥 ¿Cuánta gente pasa por tu local?", expanded=True):
+    st.caption("💡 Cuenta cuántas personas pasan frente a tu local en una hora típica")
+    flujo = st.number_input(
+        "Personas por hora", 
+        10, 300, p["flujo"],
+        help="Promedio de gente que pasa caminando frente a tu local"
+    )
+    
+    # Explicación visual
+    flujo_dia = flujo * 12  # asumiendo 12 horas
+    st.info(f"📊 Eso significa **~{flujo_dia:,} personas/día** pasando por tu local")
+
+with st.sidebar.expander("🛒 ¿Cuánto compra cada cliente?", expanded=True):
+    st.caption("💡 El ticket promedio es lo que gasta un cliente típico")
+    ticket = st.number_input(
+        "Ticket promedio farmacia ($)", 
+        40, 300, p["ticket"],
+        help="¿Cuánto gasta en promedio un cliente en farmacia?"
+    )
+    
+    if ticket < 70:
+        st.warning("⚠️ Ticket bajo - típico de zonas populares")
+    elif ticket > 120:
+        st.success("✅ Ticket alto - típico de zonas con mayor poder adquisitivo")
+
+# Consultorio
+if m["consultorio"]:
+    with st.sidebar.expander("🩺 Consultorio médico", expanded=True):
+        st.caption("💡 El consultorio genera ingresos extra y atrae clientes a la farmacia")
+        consultas = st.number_input(
+            "Consultas por día", 
+            0, 40, p.get("consultas", 0),
+            help="¿Cuántas consultas médicas esperas al día?"
+        )
+        ingreso_consulta = st.number_input(
+            "Cobro por consulta ($)", 
+            0, 150, p.get("ingreso_consulta", 40),
+            help="¿Cuánto cobras por cada consulta?"
+        )
+        ticket_receta = st.number_input(
+            "Compra promedio con receta ($)", 
+            50, 400, p.get("ticket_receta", 120),
+            help="Los pacientes con receta gastan más"
+        )
+        
+        # Parámetro automático
+        surten = p.get("surten", 0.6)
+        
+        ingresos_consultas_dia = consultas * ingreso_consulta
+        st.info(f"💊 Ingreso diario por consultas: **${ingresos_consultas_dia:,}**")
+else:
+    consultas, surten, ticket_receta, ingreso_consulta, cogs_receta = 0, 0, 0, 0, cogs
+
+# Abarrotes
+if m["abarrotes"]:
+    with st.sidebar.expander("🛒 Abarrotes", expanded=True):
+        st.caption("💡 Los abarrotes atraen tráfico pero tienen menor margen")
+        abarrotes_pct = p.get("abarrotes_pct", 0.15)
+        st.info(f"📦 Abarrotes representan ~{int(abarrotes_pct*100)}% de las ventas de farmacia")
+else:
+    abarrotes_pct, cogs_abarrotes = 0, 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PLAYGROUND DE GASTOS FIJOS
+# ═══════════════════════════════════════════════════════════════════════════════
+with st.sidebar.expander("🏢 Gastos Fijos (Detalle)", expanded=True):
+    st.caption("Añade o modifica gastos fijos mensuales")
+    
+    # Presets de gastos fijos por modelo
+    gastos_presets = {
+        "🏪 Mini": {
+            "Renta": 8000,
+            "Nómina": 6000,
+            "Luz": 1500,
+            "Internet/Tel": 500,
+            "Contador": 1000,
+            "Seguros": 500,
+            "Limpieza": 500,
+        },
+        "🩺 Consultorio": {
+            "Renta": 12000,
+            "Nómina farmacia": 8000,
+            "Nómina médico": 10000,
+            "Luz": 2500,
+            "Internet/Tel": 800,
+            "Contador": 1500,
+            "Seguros": 1200,
+            "Limpieza": 800,
+            "Insumos médicos": 1200,
+        },
+        "🛒 Super": {
+            "Renta": 18000,
+            "Nómina farmacia": 10000,
+            "Nómina médico": 10000,
+            "Nómina abarrotes": 5000,
+            "Luz": 4000,
+            "Internet/Tel": 1000,
+            "Contador": 2000,
+            "Seguros": 1500,
+            "Limpieza": 1200,
+            "Insumos médicos": 1300,
+        },
+    }
+    
+    gf_default = gastos_presets[modelo]
+    
+    # Inicializar estado
+    if "gastos_fijos_items" not in st.session_state or st.session_state.get("modelo_gf_anterior") != modelo:
+        st.session_state.gastos_fijos_items = gf_default.copy()
+        st.session_state.modelo_gf_anterior = modelo
+    
+    # Mostrar items de gastos
+    gastos_fijos_total = 0
+    items_gf = list(st.session_state.gastos_fijos_items.keys())
+    
+    for item in items_gf:
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            nuevo_valor = st.number_input(
+                item,
+                min_value=0,
+                value=st.session_state.gastos_fijos_items[item],
+                step=100,
+                key=f"gf_{item}"
+            )
+            st.session_state.gastos_fijos_items[item] = nuevo_valor
+        with col2:
+            if st.button("🗑️", key=f"del_gf_{item}"):
+                del st.session_state.gastos_fijos_items[item]
+                st.rerun()
+        gastos_fijos_total += nuevo_valor
+    
+    # Agregar nuevo gasto
+    st.markdown("---")
+    col_g1, col_g2 = st.columns([2, 1])
+    with col_g1:
+        nuevo_gasto = st.text_input("Nuevo gasto", key="new_gf_concept", placeholder="Ej: Publicidad")
+    with col_g2:
+        nuevo_monto_gf = st.number_input("Monto", min_value=0, value=0, step=100, key="new_gf_amount")
+    
+    if st.button("➕ Agregar gasto", key="add_gf"):
+        if nuevo_gasto and nuevo_monto_gf > 0:
+            st.session_state.gastos_fijos_items[nuevo_gasto] = nuevo_monto_gf
+            st.rerun()
+    
+    st.markdown(f"**💵 Total Gastos Fijos: ${gastos_fijos_total:,}/mes**")
+
+# Usar gastos fijos calculados
+gastos_fijos = sum(st.session_state.gastos_fijos_items.values()) if "gastos_fijos_items" in st.session_state else p["gastos_fijos"]
+
+# Proyección simplificada
+with st.sidebar.expander("📈 Crecimiento esperado", expanded=False):
+    st.caption("💡 ¿Cuánto esperas crecer cada mes?")
+    crec_opcion = st.radio(
+        "Expectativa de crecimiento",
+        ["🐢 Conservador (1%/mes)", "🚶 Moderado (3%/mes)", "🚀 Agresivo (5%/mes)"],
+        index=1
+    )
+    crec = {"🐢 Conservador (1%/mes)": 0.01, "🚶 Moderado (3%/mes)": 0.03, "🚀 Agresivo (5%/mes)": 0.05}[crec_opcion]
+    
+    st.info(f"📈 En 12 meses tus ventas crecerían ~{((1+crec)**12 - 1)*100:.0f}%")
+
+# Vector de estacionalidad fijo (simplificado)
+est_vector = np.ones(12)
+
+# Valores fijos de operación (simplificados)
+horas = 12
+dias = 28
+conversion = p["conversion"]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CÁLCULOS - MES BASE
+# ═══════════════════════════════════════════════════════════════════════════════
+flujo_mes = flujo * horas * dias
+clientes_mes = int(flujo_mes * conversion)
+
+# Ventas
+ventas_farmacia = clientes_mes * ticket
+consultas_mes = consultas * dias if m["consultorio"] else 0
+ventas_recetas = consultas_mes * surten * ticket_receta
+ingresos_consulta = consultas_mes * ingreso_consulta
+ventas_abarrotes = ventas_farmacia * abarrotes_pct if m["abarrotes"] else 0
+ventas_totales = ventas_farmacia + ventas_recetas + ventas_abarrotes + ingresos_consulta
+
+# COGS
+cogs_farmacia = ventas_farmacia * cogs
+cogs_recetas_t = ventas_recetas * cogs_receta
+cogs_abarrotes_t = ventas_abarrotes * cogs_abarrotes
+cogs_total = cogs_farmacia + cogs_recetas_t + cogs_abarrotes_t
+
+# Utilidades
+utilidad_bruta = ventas_totales - cogs_total
+gastos_variables = ventas_totales * gastos_var
+utilidad_neta = utilidad_bruta - gastos_fijos - gastos_variables
+margen_neto = utilidad_neta / ventas_totales if ventas_totales > 0 else 0
+
+# Break-even
+contribucion = 1 - cogs - gastos_var
+if contribucion > 0:
+    ventas_be = gastos_fijos / contribucion
+    clientes_be = ventas_be / ticket if ticket > 0 else 0
+else:
+    ventas_be, clientes_be = float('inf'), float('inf')
+
+# ROI (inversion ya calculada desde session_state)
+roi_anual = (utilidad_neta * 12) / inversion if inversion > 0 else 0
+meses_recuperacion = inversion / utilidad_neta if utilidad_neta > 0 else float('inf')
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROYECCIÓN 12 MESES
+# ═══════════════════════════════════════════════════════════════════════════════
+proyeccion = []
+proyeccion_num = []  # Para gráficas
+for t in range(12):
+    factor = ((1 + crec) ** t) * est_vector[t]
+    vf = ventas_farmacia * factor
+    vr = ventas_recetas * factor
+    va = ventas_abarrotes * factor
+    ic = ingresos_consulta * factor
+    vt = vf + vr + va + ic
+    
+    ct = vf * cogs + vr * cogs_receta + va * cogs_abarrotes
+    ub = vt - ct
+    gv = vt * gastos_var
+    un = ub - gastos_fijos - gv
+    mn = un / vt if vt > 0 else 0
+    
+    # Para tabla (formateado)
+    proyeccion.append({
+        "Mes": t + 1,
+        "Ventas": f"${round(vt):,}",
+        "COGS": f"${round(ct):,}",
+        "Util. Bruta": f"${round(ub):,}",
+        "Gastos Fijos": f"${round(gastos_fijos):,}",
+        "Gastos Var.": f"${round(gv):,}",
+        "Util. Neta": f"${round(un):,}",
+        "Margen %": f"{round(mn * 100, 1)}%",
+    })
+    
+    # Para gráficas (numérico)
+    proyeccion_num.append({
+        "Mes": t + 1,
+        "Ventas": round(vt),
+        "Util. Neta": round(un),
+        "Margen %": round(mn * 100, 1),
+    })
+
+df = pd.DataFrame(proyeccion)
+df_num = pd.DataFrame(proyeccion_num)
+
+# Calcular totales
+util_anual = df_num["Util. Neta"].sum()
+ventas_anual = df_num["Ventas"].sum()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OUTPUT PRINCIPAL
+# ═══════════════════════════════════════════════════════════════════════════════
+# Logo header
+st.markdown(f'''
+<div style="text-align: center; margin-bottom: 20px;">
+    <div style="font-size: 36px; font-weight: bold;">
+        <span style="color: {VERDE};">+FARMACIA</span> 
+        <span style="color: {AZUL};">LÍBANO</span>
+    </div>
+    <div style="font-style: italic; color: {AZUL}; font-size: 14px;">Siempre al cuidado de tu salud</div>
+</div>
+''', unsafe_allow_html=True)
+
+st.title(f"📊 Corrida Financiera - {modelo}")
+st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,}")
+
+# Validaciones claras
+if contribucion <= 0:
+    st.error("❌ Los números no cuadran. Los costos son muy altos para generar ganancia.")
+    st.stop()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESUMEN EJECUTIVO (Lo más importante arriba)
+# ═══════════════════════════════════════════════════════════════════════════════
+st.markdown("### 🎯 ¿Es rentable este negocio?")
+
+# Semáforo de rentabilidad
+if utilidad_neta > 0 and meses_recuperacion < 24:
+    st.success(f"""
+    ✅ **¡SÍ ES RENTABLE!**
+    
+    💰 **Ganarías ${utilidad_neta:,.0f} al mes** (después de pagar todo)
+    
+    ⏱️ **Recuperas tu inversión en {meses_recuperacion:.1f} meses**
+    
+    📈 **ROI del {roi_anual*100:.0f}% anual** (tu dinero crece {roi_anual*100:.0f}% cada año)
+    """)
+elif utilidad_neta > 0:
+    st.warning(f"""
+    ⚠️ **ES RENTABLE, PERO TARDA**
+    
+    💰 Ganarías ${utilidad_neta:,.0f} al mes
+    
+    ⏱️ Pero recuperas inversión en {meses_recuperacion:.0f} meses ({meses_recuperacion/12:.1f} años)
+    
+    💡 Considera reducir gastos fijos o buscar mejor ubicación
+    """)
+else:
+    st.error(f"""
+    ❌ **NO ES RENTABLE**
+    
+    📉 Perderías ${abs(utilidad_neta):,.0f} al mes
+    
+    💡 Necesitas: más clientes, subir precios, o reducir gastos
+    """)
+
+# KPIs simplificados con explicaciones
+st.markdown("### 📊 Los números clave")
+
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.metric("👥 Clientes/mes", f"{clientes_mes:,}")
+    st.caption("Personas que te compran al mes")
+    
+with c2:
+    st.metric("💵 Ventas/mes", f"${ventas_totales:,.0f}")
+    st.caption("Todo lo que entra de dinero")
+    
+with c3:
+    st.metric("💰 Te queda/mes", f"${utilidad_neta:,.0f}")
+    st.caption("Tu ganancia real (después de pagar TODO)")
+
+c4, c5, c6 = st.columns(3)
+with c4:
+    st.metric("🎯 Punto de equilibrio", f"${ventas_be:,.0f}")
+    st.caption("Ventas mínimas para no perder")
+    
+with c5:
+    st.metric("⏱️ Recuperación", f"{meses_recuperacion:.1f} meses" if meses_recuperacion < 100 else "N/A")
+    st.caption("Tiempo para recuperar tu inversión")
+    
+with c6:
+    st.metric("📈 ROI Anual", f"{roi_anual*100:.0f}%")
+    st.caption("Cuánto crece tu dinero al año")
+
+# ¿De dónde vienen las ventas?
+st.markdown("### 💵 ¿De dónde viene el dinero?")
+desglose = {"💊 Farmacia": ventas_farmacia}
+if m["consultorio"]:
+    desglose["💉 Recetas"] = ventas_recetas
+    desglose["🩺 Consultas"] = ingresos_consulta
+if m["abarrotes"]:
+    desglose["🛒 Abarrotes"] = ventas_abarrotes
+
+col_desg = st.columns(len(desglose))
+for i, (k, v) in enumerate(desglose.items()):
+    pct = v / ventas_totales * 100 if ventas_totales > 0 else 0
+    with col_desg[i]:
+        st.metric(k, f"${v:,.0f}")
+        st.caption(f"{pct:.0f}% de tus ventas")
+
+# ¿En qué se va el dinero?
+st.markdown("### 💸 ¿En qué se va el dinero?")
+
+# Calcular gastos para mostrar
+costo_producto = cogs_total
+gastos_extras = gastos_variables
+
+col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+with col_g1:
+    st.metric("📦 Mercancía", f"${costo_producto:,.0f}")
+    st.caption("Lo que te cuesta el producto")
+with col_g2:
+    st.metric("🏢 Gastos Fijos", f"${gastos_fijos:,}")
+    st.caption("Renta, nómina, luz, etc.")
+with col_g3:
+    st.metric("📊 Otros gastos", f"${gastos_extras:,.0f}")
+    st.caption("Comisiones, bolsas, etc.")
+with col_g4:
+    total_gastos = costo_producto + gastos_fijos + gastos_extras
+    st.metric("📉 Total gastos", f"${total_gastos:,.0f}")
+    st.caption("Todo lo que sale")
+
+# Desglose detallado (colapsable)
+with st.expander("📋 Ver detalle de inversión y gastos fijos"):
+    col_inv, col_gf = st.columns(2)
+
+    with col_inv:
+        st.markdown("**💰 Tu Inversión Inicial**")
+        if "inversion_items" in st.session_state:
+            inv_df = pd.DataFrame([
+                {"Concepto": k, "Monto": f"${v:,}"} 
+                for k, v in st.session_state.inversion_items.items()
+            ])
+            st.dataframe(inv_df, use_container_width=True, hide_index=True)
+            st.markdown(f"**Total: ${inversion:,}**")
+
+    with col_gf:
+        st.markdown("**🏢 Tus Gastos Fijos Mensuales**")
+        if "gastos_fijos_items" in st.session_state:
+            gf_df = pd.DataFrame([
+                {"Concepto": k, "Monto": f"${v:,}"} 
+                for k, v in st.session_state.gastos_fijos_items.items()
+            ])
+            st.dataframe(gf_df, use_container_width=True, hide_index=True)
+            st.markdown(f"**Total: ${gastos_fijos:,}/mes**")
+
+# Proyección 12 meses simplificada
+st.markdown("### 📅 ¿Cómo se ve el primer año?")
+# Tabla simplificada
+df_simple = pd.DataFrame([{
+    "Mes": p["Mes"],
+    "Ventas": p["Ventas"],
+    "Te queda": p["Util. Neta"],
+} for p in proyeccion])
+st.dataframe(df_simple, use_container_width=True, hide_index=True)
+
+col_anual1, col_anual2 = st.columns(2)
+with col_anual1:
+    st.metric("💵 Ventas del año", f"${ventas_anual:,.0f}")
+with col_anual2:
+    st.metric("💰 Ganancia del año", f"${util_anual:,.0f}")
+
+# Gráfica simple
+st.markdown("### 📈 Evolución de tu negocio")
+st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta"]])
+
+# Resumen final claro
+st.markdown("---")
+st.markdown(f"""
+### 🎯 Resumen para {modelo}
+
+| Lo que inviertes | Lo que pagas cada mes | Lo que vendes al año | Lo que te queda |
+|------------------|----------------------|---------------------|-----------------|
+| **${inversion:,}** | **${gastos_fijos:,}** | **${ventas_anual:,.0f}** | **${util_anual:,.0f}** |
+
+**En palabras simples:**
+- 💰 Inviertes **${inversion:,}** una sola vez para abrir
+- 🏢 Pagas **${gastos_fijos:,}** cada mes de gastos fijos (renta, luz, sueldos...)
+- 📈 Vendes **${ventas_totales:,.0f}** al mes y te quedan **${utilidad_neta:,.0f}** de ganancia
+- ⏱️ En **{meses_recuperacion:.0f} meses** ({meses_recuperacion/12:.1f} años) recuperas lo que invertiste
+- 🎯 Necesitas vender mínimo **${ventas_be:,.0f}/mes** para no perder dinero
+""")
+
+# Advertencias útiles
+if meses_recuperacion > 24:
+    st.warning("⚠️ **Cuidado:** Tardas más de 2 años en recuperar la inversión. Considera opciones para mejorar.")
+if clientes_mes < clientes_be:
+    st.error(f"❌ **Problema:** Necesitas {int(clientes_be):,} clientes para no perder, pero solo estás proyectando {clientes_mes:,}")
+if margen_neto < 0.05 and utilidad_neta > 0:
+    st.warning("⚠️ Margen muy bajo. Cualquier imprevisto te puede poner en números rojos.")
