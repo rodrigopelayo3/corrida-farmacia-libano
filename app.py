@@ -22,6 +22,189 @@ st.set_page_config(
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SISTEMA DE CÓDIGOS DE ACCESO
+# Los códigos se leen de codigos.txt (NO se sube a GitHub)
+# ═══════════════════════════════════════════════════════════════════════════════
+import os
+from datetime import datetime
+
+def cargar_codigos():
+    """Carga los códigos desde codigos.txt"""
+    codigos = {}
+    archivo = os.path.join(os.path.dirname(__file__), 'codigos.txt')
+    
+    if os.path.exists(archivo):
+        with open(archivo, 'r', encoding='utf-8') as f:
+            for linea in f:
+                linea = linea.strip()
+                if linea and not linea.startswith('#') and '=' in linea:
+                    codigo, nombre = linea.split('=', 1)
+                    codigos[codigo.strip()] = nombre.strip()
+    
+    # Código dinámico del día (cambia cada día)
+    codigo_diario = f"DIA{datetime.now().strftime('%d%m%y')}"
+    codigos[codigo_diario] = "Acceso Temporal"
+    
+    return codigos
+
+def registrar_acceso(codigo, nombre):
+    """Registra el acceso en accesos.log"""
+    archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
+    fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open(archivo_log, 'a', encoding='utf-8') as f:
+        f.write(f"{fecha_hora} | {codigo} | {nombre}\n")
+
+def registrar_corrida(datos_franquicia, usuario):
+    """Registra cuando se crea una corrida financiera"""
+    archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
+    fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open(archivo_log, 'a', encoding='utf-8') as f:
+        f.write(f"{fecha_hora} | CORRIDA | {usuario} | {datos_franquicia['nombre']} | {datos_franquicia['ubicacion']} | {datos_franquicia['proposito']}\n")
+
+CODIGOS_ACCESO = cargar_codigos()
+
+# Verificar si el usuario ya está autenticado
+if 'acceso_autorizado' not in st.session_state:
+    st.session_state['acceso_autorizado'] = False
+
+# Si no está autenticado, mostrar pantalla de login
+if not st.session_state['acceso_autorizado']:
+    st.markdown("""
+    <div style="text-align: center; padding: 30px 0;">
+        <div style="font-size: 40px; font-weight: bold;">
+            <span style="color: #00A651;">+FARMACIA</span> 
+            <span style="color: #003D7A;">LÍBANO</span>
+        </div>
+        <div style="font-style: italic; font-size: 16px; color: #003D7A; margin-top: 10px;">
+            Siempre al cuidado de tu salud
+        </div>
+        <div style="font-size: 24px; color: #003D7A; margin-top: 30px; font-weight: bold;">
+            Corrida Financiera - Portal de Franquicias
+        </div>
+        <div style="font-size: 14px; color: #666; margin-top: 10px;">
+            Ingresa tu código de acceso para continuar
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            codigo = st.text_input("🔑 Código de Acceso:", type="password", placeholder="Ingresa tu código...")
+            submit = st.form_submit_button("🚀 Acceder", use_container_width=True)
+            
+            if submit:
+                if codigo in CODIGOS_ACCESO:
+                    st.session_state['acceso_autorizado'] = True
+                    st.session_state['usuario_nombre'] = CODIGOS_ACCESO[codigo]
+                    registrar_acceso(codigo, CODIGOS_ACCESO[codigo])
+                    st.rerun()
+                else:
+                    st.error("❌ Código de acceso inválido")
+    
+    st.stop()  # Detiene la ejecución aquí si no está autenticado
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# USUARIO AUTENTICADO - FORMULARIO INICIAL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Inicializar datos del franquiciatario si no existen
+if 'datos_franquicia' not in st.session_state:
+    st.session_state['datos_franquicia'] = None
+
+# Si no ha llenado el formulario, mostrarlo
+if st.session_state['datos_franquicia'] is None:
+    st.markdown("""
+    <div style="text-align: center; padding: 20px 0;">
+        <div style="font-size: 36px; font-weight: bold;">
+            <span style="color: #00A651;">+FARMACIA</span> 
+            <span style="color: #003D7A;">LÍBANO</span>
+        </div>
+        <div style="font-size: 20px; color: #003D7A; margin-top: 15px;">
+            Corrida Financiera para Franquicias
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("### 📋 Datos de la Corrida Financiera")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("datos_franquicia_form"):
+            nombre_franquiciatario = st.text_input(
+                "👤 Nombre del Franquiciatario:",
+                placeholder="Ej: Juan Pérez García"
+            )
+            ubicacion_franquicia = st.text_input(
+                "📍 Ubicación/Ciudad de la Franquicia:",
+                placeholder="Ej: Monterrey, N.L."
+            )
+            proposito = st.selectbox(
+                "🎯 Propósito de esta corrida:",
+                [
+                    "Nueva apertura",
+                    "Análisis de expansión",
+                    "Revisión de desempeño",
+                    "Presentación a inversionistas",
+                    "Otro"
+                ]
+            )
+            notas = st.text_area(
+                "📝 Notas adicionales (opcional):",
+                placeholder="Cualquier información relevante...",
+                height=80
+            )
+            
+            submit_datos = st.form_submit_button("▶️ Continuar a la Corrida", use_container_width=True)
+            
+            if submit_datos:
+                if nombre_franquiciatario.strip() and ubicacion_franquicia.strip():
+                    st.session_state['datos_franquicia'] = {
+                        'nombre': nombre_franquiciatario.strip(),
+                        'ubicacion': ubicacion_franquicia.strip(),
+                        'proposito': proposito,
+                        'notas': notas.strip()
+                    }
+                    # Registrar la corrida en el log
+                    registrar_corrida(st.session_state['datos_franquicia'], st.session_state.get('usuario_nombre', 'Usuario'))
+                    st.rerun()
+                else:
+                    st.error("Por favor completa el nombre y la ubicación")
+    
+    # Botón de logout
+    st.markdown("---")
+    col_l1, col_l2, col_l3 = st.columns([1, 1, 1])
+    with col_l2:
+        if st.button("🚪 Cerrar Sesión", use_container_width=True):
+            st.session_state['acceso_autorizado'] = False
+            st.session_state['datos_franquicia'] = None
+            st.rerun()
+    
+    st.stop()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# APLICACIÓN PRINCIPAL - Header limpio
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Header compacto con info del usuario y franquicia
+datos_f = st.session_state['datos_franquicia']
+col_h1, col_h2, col_h3 = st.columns([3, 2, 1])
+with col_h1:
+    st.markdown(f"""
+    <div style="font-size: 14px; color: #666;">
+        <strong style="color: #003D7A;">{datos_f['nombre']}</strong> · {datos_f['ubicacion']} · {datos_f['proposito']}
+    </div>
+    """, unsafe_allow_html=True)
+with col_h2:
+    st.caption(f"Sesión: {st.session_state.get('usuario_nombre', 'Usuario')}")
+with col_h3:
+    if st.button("🚪 Salir", key="logout_main"):
+        st.session_state['acceso_autorizado'] = False
+        st.session_state['datos_franquicia'] = None
+        st.rerun()
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # COLORES Y ESTILO FARMACIA LÍBANO
 # ═══════════════════════════════════════════════════════════════════════════════
 VERDE = "#00A651"
@@ -129,30 +312,29 @@ MODELOS = {
 # ANÁLISIS DE MÁRGENES POR CATEGORÍA (Como analista financiero de farmacias)
 # Genéricos: 35-45% margen | Patente: 15-25% margen | Abarrotes: 8-15% margen
 # Mix promedio ponderado según flujo y conversión por escenario
-# NOTA: Flujo = personas por DÍA
 
 PRESETS = {
     "🏪 Mini": {
-        "Conservador": {"flujo": 150, "conversion": 0.08, "ticket": 75, "cogs": 0.72, "gastos_fijos": 22000, "gastos_var": 0.03, "crec": 0.015},
-        "Medio":       {"flujo": 300, "conversion": 0.12, "ticket": 95, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.05, "crec": 0.03},
-        "Alto":        {"flujo": 500, "conversion": 0.16, "ticket": 120, "cogs": 0.65, "gastos_fijos": 35000, "gastos_var": 0.07, "crec": 0.045},
+        "Conservador": {"flujo": 30, "conversion": 0.08, "ticket": 75, "cogs": 0.72, "gastos_fijos": 22000, "gastos_var": 0.03, "crec": 0.015},
+        "Medio":       {"flujo": 60, "conversion": 0.12, "ticket": 95, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.05, "crec": 0.03},
+        "Alto":        {"flujo": 100, "conversion": 0.16, "ticket": 120, "cogs": 0.65, "gastos_fijos": 35000, "gastos_var": 0.07, "crec": 0.045},
     },
     "🩺 Consultorio": {
-        "Conservador": {"flujo": 250, "conversion": 0.09, "ticket": 85, "cogs": 0.70, "gastos_fijos": 35000, "gastos_var": 0.04, "crec": 0.02,
+        "Conservador": {"flujo": 45, "conversion": 0.09, "ticket": 85, "cogs": 0.70, "gastos_fijos": 35000, "gastos_var": 0.04, "crec": 0.02,
                         "consultas": 8, "surten": 0.60, "ticket_receta": 120, "ingreso_consulta": 40, "cogs_receta": 0.62},
-        "Medio":       {"flujo": 450, "conversion": 0.13, "ticket": 110, "cogs": 0.67, "gastos_fijos": 45000, "gastos_var": 0.06, "crec": 0.035,
+        "Medio":       {"flujo": 80, "conversion": 0.13, "ticket": 110, "cogs": 0.67, "gastos_fijos": 45000, "gastos_var": 0.06, "crec": 0.035,
                         "consultas": 15, "surten": 0.72, "ticket_receta": 180, "ingreso_consulta": 60, "cogs_receta": 0.58},
-        "Alto":        {"flujo": 700, "conversion": 0.17, "ticket": 150, "cogs": 0.63, "gastos_fijos": 58000, "gastos_var": 0.08, "crec": 0.05,
+        "Alto":        {"flujo": 140, "conversion": 0.17, "ticket": 150, "cogs": 0.63, "gastos_fijos": 58000, "gastos_var": 0.08, "crec": 0.05,
                         "consultas": 25, "surten": 0.85, "ticket_receta": 250, "ingreso_consulta": 85, "cogs_receta": 0.55},
     },
     "🛒 Super": {
-        "Conservador": {"flujo": 350, "conversion": 0.10, "ticket": 90, "cogs": 0.74, "gastos_fijos": 48000, "gastos_var": 0.04, "crec": 0.025,
+        "Conservador": {"flujo": 60, "conversion": 0.10, "ticket": 90, "cogs": 0.74, "gastos_fijos": 48000, "gastos_var": 0.04, "crec": 0.025,
                         "consultas": 10, "surten": 0.65, "ticket_receta": 140, "ingreso_consulta": 45, "cogs_receta": 0.62,
                         "abarrotes_pct": 0.15, "cogs_abarrotes": 0.90},
-        "Medio":       {"flujo": 600, "conversion": 0.14, "ticket": 120, "cogs": 0.69, "gastos_fijos": 62000, "gastos_var": 0.06, "crec": 0.04,
+        "Medio":       {"flujo": 110, "conversion": 0.14, "ticket": 120, "cogs": 0.69, "gastos_fijos": 62000, "gastos_var": 0.06, "crec": 0.04,
                         "consultas": 18, "surten": 0.75, "ticket_receta": 200, "ingreso_consulta": 70, "cogs_receta": 0.58,
                         "abarrotes_pct": 0.22, "cogs_abarrotes": 0.88},
-        "Alto":        {"flujo": 900, "conversion": 0.18, "ticket": 165, "cogs": 0.65, "gastos_fijos": 78000, "gastos_var": 0.08, "crec": 0.055,
+        "Alto":        {"flujo": 180, "conversion": 0.18, "ticket": 165, "cogs": 0.65, "gastos_fijos": 78000, "gastos_var": 0.08, "crec": 0.055,
                         "consultas": 30, "surten": 0.88, "ticket_receta": 280, "ingreso_consulta": 100, "cogs_receta": 0.55,
                         "abarrotes_pct": 0.32, "cogs_abarrotes": 0.85},
     },
@@ -254,27 +436,16 @@ cogs_abarrotes = p.get("cogs_abarrotes", 0.88)
 gastos_var = p["gastos_var"]  # Gastos variables
 
 with st.sidebar.expander("👥 ¿Cuánta gente pasa por tu local?", expanded=True):
-    st.caption("💡 Cuenta cuántas personas pasan frente a tu local en un día promedio")
-    
-    # Horarios de operación
-    col_h1, col_h2 = st.columns(2)
-    with col_h1:
-        hora_apertura = st.number_input("Hora apertura", 6, 12, 8, help="¿A qué hora abres?")
-    with col_h2:
-        hora_cierre = st.number_input("Hora cierre", 18, 24, 20, help="¿A qué hora cierras?")
-    
-    horas_operacion = hora_cierre - hora_apertura
-    st.caption(f"🕰️ Operas {horas_operacion} horas por día ({hora_apertura}:00 - {hora_cierre}:00)")
-    
+    st.caption("💡 Cuenta cuántas personas pasan frente a tu local en una hora típica")
     flujo = st.number_input(
-        "Personas por día", 
-        100, 1500, p["flujo"],
-        help="Total de personas que pasan caminando frente a tu local en un día"
+        "Personas por hora", 
+        10, 300, p["flujo"],
+        help="Promedio de gente que pasa caminando frente a tu local"
     )
     
     # Explicación visual
-    flujo_hora = flujo / horas_operacion  # promedio por hora durante operación
-    st.info(f"📊 Eso es **~{flujo_hora:.0f} personas/hora** durante las {horas_operacion}h de operación")
+    flujo_dia = flujo * 12  # asumiendo 12 horas
+    st.info(f"📊 Eso significa **~{flujo_dia:,} personas/día** pasando por tu local")
 
 with st.sidebar.expander("🛒 ¿Cuánto compra cada cliente?", expanded=True):
     st.caption("💡 El ticket promedio es lo que gasta un cliente típico")
@@ -430,15 +601,14 @@ with st.sidebar.expander("📈 Crecimiento esperado", expanded=False):
 est_vector = np.ones(12)
 
 # Valores fijos de operación (simplificados)
+horas = 12
 dias = 28
 conversion = p["conversion"]
-
-# Horarios ya definidos arriba en el sidebar
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CÁLCULOS - MES BASE
 # ═══════════════════════════════════════════════════════════════════════════════
-flujo_mes = flujo * dias  # flujo ya es por DÍA, solo multiplicar por días del mes
+flujo_mes = flujo * horas * dias
 clientes_mes = int(flujo_mes * conversion)
 
 # Ventas
@@ -538,7 +708,7 @@ st.markdown(f'''
 ''', unsafe_allow_html=True)
 
 st.title(f"📊 Corrida Financiera - {modelo}")
-st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,} | **Horario:** {hora_apertura}:00-{hora_cierre}:00 ({horas_operacion}h)
+st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,}")
 
 # Análisis de flujo y conversión
 st.markdown("### 👥 Análisis de Flujo Peatonal")
@@ -622,7 +792,7 @@ else:  # Alto
 # ¿Cómo afectan los escenarios a todos los números?
 st.markdown("### 📊 ¿Cómo afecta tu escenario a TODOS los números?")
 
-col_esc1, col_esc2, col_esc3, col_esc4 = st.columns(4)
+col_esc1, col_esc2, col_esc3 = st.columns(3)
 
 with col_esc1:
     st.markdown("**🚶 Flujo Peatonal**")
@@ -635,11 +805,6 @@ with col_esc1:
         st.caption("🟢 Mucho flujo peatonal")
 
 with col_esc2:
-    st.markdown("**🕐 Horarios**")
-    st.metric("Horas operación", f"{horas_operacion}h")
-    st.caption(f"💡 {flujo_hora:.0f} personas/hora")
-
-with col_esc3:
     st.markdown("**💳 Ticket Promedio**")
     st.metric("Gasto/cliente", f"${ticket_prom:,.0f}")
     if escenario == "Conservador":
@@ -649,7 +814,7 @@ with col_esc3:
     else:
         st.caption("🟢 Clientes gastan más")
 
-with col_esc4:
+with col_esc3:
     st.markdown("**📈 Crecimiento**")
     crec_anual = p.get("crec", 0) * 12 * 100
     st.metric("Crecimiento anual", f"{crec_anual:.1f}%")
@@ -665,10 +830,7 @@ st.info(f"""
 sino también cuánto gastan, qué tan rápido crece tu negocio, y qué márgenes puedes obtener.
 
 **¿Por qué?** En mejores ubicaciones puedes cobrar un poco más, los clientes compran más cosas, 
-y el boca a boca hace que crezcas más rápido. 
-
-**💼 Horarios inteligentes:** Operar {horas_operacion} horas ({hora_apertura}:00-{hora_cierre}:00) te da 
-{flujo_hora:.0f} personas/hora - ajusta según tu zona para maximizar flujo vs costos. ¡Todo está conectado! 🔗
+y el boca a boca hace que crezcas más rápido. ¡Todo está conectado! 🔗
 """)
 
 st.markdown("---")
@@ -883,6 +1045,9 @@ st.markdown(f"""
 def generar_reporte_pdf():
     """Genera un reporte PDF profesional para presentar oportunidad de franquicia"""
     
+    # Obtener datos del franquiciatario
+    datos_f = st.session_state.get('datos_franquicia', {})
+    
     # Buffer para el PDF
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
@@ -905,7 +1070,16 @@ def generar_reporte_pdf():
     story.append(Paragraph("<b>+FARMACIA LÍBANO</b>", title_style))
     story.append(Paragraph("OPORTUNIDAD DE INVERSIÓN - ANÁLISIS FINANCIERO", styles['Heading2']))
     story.append(Paragraph("<i>Siempre al cuidado de tu salud</i>", subtitle_style))
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 15))
+    
+    # Información del franquiciatario
+    franquicia_info = f"""
+    <b>Preparado para:</b> {datos_f.get('nombre', 'N/A')}<br/>
+    <b>Ubicación:</b> {datos_f.get('ubicacion', 'N/A')}<br/>
+    <b>Propósito:</b> {datos_f.get('proposito', 'N/A')}<br/>
+    """
+    story.append(Paragraph(franquicia_info, styles['Normal']))
+    story.append(Spacer(1, 10))
     
     # Información del modelo
     conversion_rate = conversion * 100
@@ -913,7 +1087,6 @@ def generar_reporte_pdf():
     <b>Modelo de Franquicia:</b> {modelo}<br/>
     <b>Escenario Analizado:</b> {escenario}<br/>
     <b>Inversión Requerida:</b> ${inversion:,}<br/>
-    <b>Horarios de Operación:</b> {hora_apertura}:00 - {hora_cierre}:00 ({horas_operacion} horas/día)<br/>
     <b>Fecha de Análisis:</b> {pd.Timestamp.now().strftime('%d/%m/%Y')}<br/>
     """
     story.append(Paragraph(modelo_info, styles['Normal']))

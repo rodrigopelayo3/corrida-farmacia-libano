@@ -4,3 +4,9 @@ __pycache__/
 .env
 *.xlsx
 *.docx
+
+# Archivo de códigos de acceso (PRIVADO - no subir a GitHub)
+codigos.txt
+
+# Registro de accesos (PRIVADO)
+accesos.log
