@@ -10,3 +10,6 @@ codigos.txt
 
 # Registro de accesos (PRIVADO)
 accesos.log
+
+# Secrets de Streamlit (PRIVADO)
+.streamlit/secrets.toml

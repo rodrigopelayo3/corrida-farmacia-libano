@@ -23,16 +23,17 @@ st.set_page_config(
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SISTEMA DE CÓDIGOS DE ACCESO
-# Los códigos se leen de codigos.txt (NO se sube a GitHub)
+# Local: lee de codigos.txt | Producción: lee de Streamlit Secrets
 # ═══════════════════════════════════════════════════════════════════════════════
 import os
 from datetime import datetime
 
 def cargar_codigos():
-    """Carga los códigos desde codigos.txt"""
+    """Carga los códigos desde archivo local o Streamlit Secrets"""
     codigos = {}
-    archivo = os.path.join(os.path.dirname(__file__), 'codigos.txt')
     
+    # Intentar cargar desde archivo local primero
+    archivo = os.path.join(os.path.dirname(__file__), 'codigos.txt')
     if os.path.exists(archivo):
         with open(archivo, 'r', encoding='utf-8') as f:
             for linea in f:
@@ -41,25 +42,55 @@ def cargar_codigos():
                     codigo, nombre = linea.split('=', 1)
                     codigos[codigo.strip()] = nombre.strip()
     
-    # Código dinámico del día (cambia cada día)
+    # Si no hay códigos locales, intentar Streamlit Secrets (producción)
+    if not codigos:
+        try:
+            if 'codigos' in st.secrets:
+                codigos = dict(st.secrets['codigos'])
+        except:
+            pass
+    
+    # Código dinámico del día (cambia cada día) - siempre disponible
     codigo_diario = f"DIA{datetime.now().strftime('%d%m%y')}"
     codigos[codigo_diario] = "Acceso Temporal"
     
     return codigos
 
 def registrar_acceso(codigo, nombre):
-    """Registra el acceso en accesos.log"""
-    archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
+    """Registra el acceso - local en archivo, producción en session"""
     fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    with open(archivo_log, 'a', encoding='utf-8') as f:
-        f.write(f"{fecha_hora} | {codigo} | {nombre}\n")
+    registro = f"{fecha_hora} | {codigo} | {nombre}"
+    
+    # Intentar guardar en archivo local
+    try:
+        archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
+        with open(archivo_log, 'a', encoding='utf-8') as f:
+            f.write(registro + "\n")
+    except:
+        pass
+    
+    # Guardar en session state para ver en la app
+    if 'registro_accesos' not in st.session_state:
+        st.session_state['registro_accesos'] = []
+    st.session_state['registro_accesos'].append(registro)
 
 def registrar_corrida(datos_franquicia, usuario):
     """Registra cuando se crea una corrida financiera"""
-    archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
     fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    with open(archivo_log, 'a', encoding='utf-8') as f:
-        f.write(f"{fecha_hora} | CORRIDA | {usuario} | {datos_franquicia['nombre']} | {datos_franquicia['ubicacion']} | {datos_franquicia['proposito']}\n")
+    registro = f"{fecha_hora} | CORRIDA | {usuario} | {datos_franquicia['nombre']} | {datos_franquicia['ubicacion']} | {datos_franquicia['proposito']}"
+    
+    # Intentar guardar en archivo local
+    try:
+        archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
+        with open(archivo_log, 'a', encoding='utf-8') as f:
+            f.write(registro + "\n")
+    except:
+        pass
+    
+    # Guardar en session state
+    if 'registro_accesos' not in st.session_state:
+        st.session_state['registro_accesos'] = []
+    st.session_state['registro_accesos'].append(registro)
 
 CODIGOS_ACCESO = cargar_codigos()
 
