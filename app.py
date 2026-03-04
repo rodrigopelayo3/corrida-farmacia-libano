@@ -14,6 +14,8 @@ from reportlab.graphics.charts.legends import Legend
 import matplotlib.pyplot as plt
 import io
 import base64
+import json
+import urllib.request
 
 st.set_page_config(
     page_title="Corrida Financiera - Farmacia Líbano",
@@ -57,40 +59,73 @@ def cargar_codigos():
     return codigos
 
 def registrar_acceso(codigo, nombre):
-    """Registra el acceso - local en archivo, producción en session"""
-    fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    registro = f"{fecha_hora} | {codigo} | {nombre}"
-    
-    # Intentar guardar en archivo local
-    try:
-        archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
-        with open(archivo_log, 'a', encoding='utf-8') as f:
-            f.write(registro + "\n")
-    except:
-        pass
-    
-    # Guardar en session state para ver en la app
-    if 'registro_accesos' not in st.session_state:
-        st.session_state['registro_accesos'] = []
-    st.session_state['registro_accesos'].append(registro)
+    """Registra el acceso en session, archivo local, /tmp y webhook opcional."""
+    registrar_evento("ACCESO", {
+        "codigo": codigo,
+        "usuario": nombre,
+    })
 
 def registrar_corrida(datos_franquicia, usuario):
     """Registra cuando se crea una corrida financiera"""
-    fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    registro = f"{fecha_hora} | CORRIDA | {usuario} | {datos_franquicia['nombre']} | {datos_franquicia['ubicacion']} | {datos_franquicia['proposito']}"
-    
-    # Intentar guardar en archivo local
+    registrar_evento("CORRIDA", {
+        "usuario": usuario,
+        "cliente": datos_franquicia.get("nombre", ""),
+        "ubicacion": datos_franquicia.get("ubicacion", ""),
+        "proposito": datos_franquicia.get("proposito", ""),
+    })
+
+def _obtener_webhook_auditoria():
+    """Obtiene URL de webhook para auditoría desde secrets si existe."""
     try:
-        archivo_log = os.path.join(os.path.dirname(__file__), 'accesos.log')
-        with open(archivo_log, 'a', encoding='utf-8') as f:
-            f.write(registro + "\n")
-    except:
+        if "audit_webhook_url" in st.secrets:
+            return st.secrets["audit_webhook_url"]
+        if "logging" in st.secrets and "webhook_url" in st.secrets["logging"]:
+            return st.secrets["logging"]["webhook_url"]
+    except Exception:
+        return None
+    return None
+
+def registrar_evento(tipo, payload):
+    """Registra eventos de auditoría de forma compatible con Streamlit Cloud."""
+    fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    evento = {"fecha_hora": fecha_hora, "tipo": tipo, **payload}
+    registro_txt = " | ".join([fecha_hora, tipo] + [str(v) for v in payload.values()])
+
+    # 1) Session state (visible en runtime actual)
+    if "registro_accesos" not in st.session_state:
+        st.session_state["registro_accesos"] = []
+    st.session_state["registro_accesos"].append(registro_txt)
+
+    # 2) Archivo del repo (local/dev)
+    try:
+        archivo_log = os.path.join(os.path.dirname(__file__), "accesos.log")
+        with open(archivo_log, "a", encoding="utf-8") as f:
+            f.write(registro_txt + "\n")
+    except Exception:
         pass
-    
-    # Guardar en session state
-    if 'registro_accesos' not in st.session_state:
-        st.session_state['registro_accesos'] = []
-    st.session_state['registro_accesos'].append(registro)
+
+    # 3) /tmp (funciona bien en Streamlit Cloud mientras el contenedor vive)
+    try:
+        archivo_tmp = "/tmp/corrida_accesos.jsonl"
+        with open(archivo_tmp, "a", encoding="utf-8") as f:
+            f.write(json.dumps(evento, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+    # 4) Webhook opcional para persistencia externa (recomendado en nube)
+    webhook_url = _obtener_webhook_auditoria()
+    if webhook_url:
+        try:
+            body = json.dumps(evento, ensure_ascii=False).encode("utf-8")
+            req = urllib.request.Request(
+                webhook_url,
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=3)
+        except Exception:
+            pass
 
 CODIGOS_ACCESO = cargar_codigos()
 CODIGO_ACCESO_DIRECTO = "0301"
@@ -449,7 +484,7 @@ with st.sidebar.expander("💰 Inversión Inicial", expanded=False):
     inversion_input = st.number_input(
         "Monto total de inversión inicial ($)",
         min_value=100000,
-        value=st.session_state["inversion_simple"],
+        value=st.session_state.get("inversion_simple", m["inversion"]),
         step=10000,
         key="inversion_simple",
         help="Incluye adecuación, inventario inicial, permisos y capital de trabajo"
@@ -484,16 +519,14 @@ with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
     flujo = st.number_input(
         "Peatones por hora",
         min_value=20,
-        max_value=200,
-        value=min(max(p["flujo"], 20), 200),
+        value=max(p["flujo"], 20),
         step=5,
         help="Personas caminando frente al local en una hora normal"
     )
     flujo_vehicular = st.number_input(
         "Vehículos por hora",
         min_value=0,
-        max_value=300,
-        value=min(max(30, int(p["flujo"] * 1.5)), 300),
+        value=max(30, int(p["flujo"] * 1.5)),
         step=10,
         help="Autos o motos que pasan frente al local"
     )
@@ -539,7 +572,7 @@ with st.sidebar.expander("🧾 Gasto variable", expanded=False):
     gasto_variable_pct = st.number_input(
         "Gasto variable sobre ventas (%)",
         min_value=0.0,
-        value=st.session_state["gasto_variable_simple"],
+        value=st.session_state.get("gasto_variable_simple", float(gastos_variables_default[modelo])),
         step=0.1,
         key="gasto_variable_simple",
         help="Si no estás seguro, deja el sugerido"
