@@ -8,7 +8,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.shapes import Drawing, Rect
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.graphics.charts.legends import Legend
 import matplotlib.pyplot as plt
@@ -428,23 +428,23 @@ st.sidebar.markdown("---")
 # INVERSIÓN INICIAL EDITABLE
 # ═══════════════════════════════════════════════════════════════════════════════
 with st.sidebar.expander("💰 Inversión Inicial", expanded=False):
-    st.caption(f"Inversión total para {modelo}")
-    
-    # Inicializar inversión personalizada
-    if "inversion_personalizada" not in st.session_state:
-        st.session_state.inversion_personalizada = m["inversion"]
-    
+    st.caption(f"Usa el monto sugerido o ajústalo manualmente para {modelo}")
+
+    if st.session_state.get("modelo_inversion_simple") != modelo:
+        st.session_state["inversion_simple"] = m["inversion"]
+        st.session_state["modelo_inversion_simple"] = modelo
+
     inversion_input = st.number_input(
-        f"Inversión Total - {modelo}",
+        "Monto total de inversión inicial ($)",
         min_value=100000,
-        value=st.session_state.inversion_personalizada,
+        value=st.session_state["inversion_simple"],
         step=10000,
-        help="Incluye local, inventario, equipo, permisos y capital de trabajo"
+        key="inversion_simple",
+        help="Incluye adecuación, inventario inicial, permisos y capital de trabajo"
     )
-    
+
     st.session_state.inversion_personalizada = inversion_input
-    
-    # Mostrar comparación con preset
+
     diferencia = inversion_input - m["inversion"]
     if diferencia > 0:
         st.info(f"📈 +${diferencia:,} sobre precio base")
@@ -453,30 +453,82 @@ with st.sidebar.expander("💰 Inversión Inicial", expanded=False):
     else:
         st.info("💰 Precio base estándar")
 
+    st.markdown(f"**Inversión total estimada: ${inversion_input:,}**")
+
 # Usar inversión personalizada
 inversion = st.session_state.inversion_personalizada
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# INPUTS SIMPLIFICADOS (Los % técnicos se manejan automáticamente)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# Parámetros técnicos automáticos (según escenario - el usuario NO los ve)
-cogs = p["cogs"]  # Costo de mercancía
+# Parámetros técnicos base
+cogs = p["cogs"]
 cogs_receta = p.get("cogs_receta", cogs)
 cogs_abarrotes = p.get("cogs_abarrotes", 0.88)
-gastos_var = p["gastos_var"]  # Gastos variables
+captacion_vehicular_default = {"Conservador": 0.006, "Medio": 0.012, "Alto": 0.02}[escenario]
+gastos_variables_default = {"🏪 Mini": 4.5, "🩺 Consultorio": 5.0, "🛒 Super": 5.8}
 
-with st.sidebar.expander("👥 ¿Cuánta gente pasa por tu local?", expanded=True):
-    st.caption("💡 Cuenta cuántas personas pasan frente a tu local en una hora típica")
+with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
+    st.caption("Usa una hora típica y define tu horario real de operación.")
     flujo = st.number_input(
-        "Personas por hora", 
-        10, 300, p["flujo"],
-        help="Promedio de gente que pasa caminando frente a tu local"
+        "Peatones por hora",
+        10, 400, p["flujo"],
+        help="Personas caminando frente al local en una hora normal"
     )
-    
-    # Explicación visual
-    flujo_dia = flujo * 12  # asumiendo 12 horas
-    st.info(f"📊 Eso significa **~{flujo_dia:,} personas/día** pasando por tu local")
+    flujo_vehicular = st.number_input(
+        "Vehículos por hora",
+        0, 800, max(20, int(p["flujo"] * 1.5)),
+        help="Autos o motos que pasan frente al local"
+    )
+    conversion = st.slider(
+        "Conversión peatonal (%)",
+        min_value=2.0,
+        max_value=30.0,
+        value=float(round(p["conversion"] * 100, 1)),
+        step=0.5,
+        help="Porcentaje de peatones que entra y compra"
+    ) / 100
+    captacion_vehicular = st.slider(
+        "Captación vehicular (%)",
+        min_value=0.0,
+        max_value=6.0,
+        value=float(round(captacion_vehicular_default * 100, 1)),
+        step=0.1,
+        help="Porcentaje de vehículos que sí se detienen a comprar"
+    ) / 100
+    horas = st.slider(
+        "Horas abiertas por día",
+        min_value=8,
+        max_value=24,
+        value=12,
+        step=1,
+        help="Horario diario de operación de la sucursal"
+    )
+    dias = 30
+
+    flujo_peatonal_dia = flujo * horas
+    flujo_vehicular_dia = flujo_vehicular * horas
+    clientes_vehiculares_dia = flujo_vehicular_dia * captacion_vehicular
+    st.info(
+        f"📊 Tráfico diario estimado: **{flujo_peatonal_dia:,} peatones** y "
+        f"**{flujo_vehicular_dia:,} vehículos**. Con tu captación, "
+        f"eso agrega **~{clientes_vehiculares_dia:,.0f} tickets/día** desde autos."
+    )
+
+with st.sidebar.expander("🧾 Gasto variable", expanded=False):
+    st.caption("Es el porcentaje de ventas que se te va en terminal, mermas, bolsas, promociones y operación variable.")
+    if st.session_state.get("modelo_gasto_variable_simple") != modelo:
+        st.session_state["gasto_variable_simple"] = float(gastos_variables_default[modelo])
+        st.session_state["modelo_gasto_variable_simple"] = modelo
+
+    gasto_variable_pct = st.number_input(
+        "Gasto variable sobre ventas (%)",
+        min_value=0.0,
+        max_value=20.0,
+        value=st.session_state["gasto_variable_simple"],
+        step=0.1,
+        key="gasto_variable_simple",
+        help="Si no estás seguro, deja el sugerido"
+    )
+    gastos_var = gasto_variable_pct / 100
+    st.markdown(f"**Se descuenta {gasto_variable_pct:.1f}% de cada peso vendido**")
 
 with st.sidebar.expander("🛒 ¿Cuánto compra cada cliente?", expanded=True):
     st.caption("💡 El ticket promedio es lo que gasta un cliente típico")
@@ -510,9 +562,14 @@ if m["consultorio"]:
             50, 400, p.get("ticket_receta", 120),
             help="Los pacientes con receta gastan más"
         )
-        
-        # Parámetro automático
-        surten = p.get("surten", 0.6)
+        surten = st.slider(
+            "Pacientes que surten en tu farmacia (%)",
+            min_value=20.0,
+            max_value=100.0,
+            value=float(round(p.get("surten", 0.6) * 100, 1)),
+            step=1.0,
+            help="No todos los pacientes compran la receta contigo"
+        ) / 100
         
         ingresos_consultas_dia = consultas * ingreso_consulta
         st.info(f"💊 Ingreso diario por consultas: **${ingresos_consultas_dia:,}**")
@@ -616,33 +673,56 @@ with st.sidebar.expander("🏢 Gastos Fijos (Detalle)", expanded=True):
 # Usar gastos fijos calculados
 gastos_fijos = sum(st.session_state.gastos_fijos_items.values()) if "gastos_fijos_items" in st.session_state else p["gastos_fijos"]
 
-# Proyección simplificada
-with st.sidebar.expander("📈 Crecimiento esperado", expanded=False):
-    st.caption("💡 ¿Cuánto esperas crecer cada mes?")
+# Proyección con rampa de arranque
+with st.sidebar.expander("📈 Arranque y crecimiento", expanded=True):
+    st.caption("Un negocio suele arrancar flojo, crecer rápido al inicio y luego estabilizarse.")
+    arranque_inicial = st.slider(
+        "Ventas del mes 1 vs mes estabilizado (%)",
+        min_value=30,
+        max_value=95,
+        value=55,
+        step=5,
+        help="Qué porcentaje del nivel estabilizado alcanzas en el primer mes"
+    ) / 100
+    meses_rampa = st.slider(
+        "Meses para estabilizar la sucursal",
+        min_value=3,
+        max_value=9,
+        value=6,
+        step=1,
+        help="Meses que tardas en llegar al nivel operativo normal"
+    )
     crec_opcion = st.radio(
-        "Expectativa de crecimiento",
+        "Crecimiento mensual una vez estabilizado",
         ["🐢 Conservador (1%/mes)", "🚶 Moderado (3%/mes)", "🚀 Agresivo (5%/mes)"],
         index=1
     )
     crec = {"🐢 Conservador (1%/mes)": 0.01, "🚶 Moderado (3%/mes)": 0.03, "🚀 Agresivo (5%/mes)": 0.05}[crec_opcion]
-    
-    st.info(f"📈 En 12 meses tus ventas crecerían ~{((1+crec)**12 - 1)*100:.0f}%")
+    gasto_lanzamiento = st.number_input(
+        "Gasto extra de apertura por mes (meses 1-3)",
+        min_value=0,
+        value={"🏪 Mini": 12000, "🩺 Consultorio": 18000, "🛒 Super": 25000}[modelo],
+        step=1000,
+        help="Publicidad de apertura, promociones, contratación y ajustes iniciales"
+    )
 
-# Vector de estacionalidad fijo (simplificado)
+    st.info(
+        f"📈 Tu mes 1 arranca al {arranque_inicial*100:.0f}% del nivel estabilizado. "
+        f"Después del mes {meses_rampa}, el negocio crece {crec*100:.0f}% mensual."
+    )
+
+# Vector de estacionalidad fijo
 est_vector = np.ones(12)
 
-# Valores fijos de operación (simplificados)
-horas = 12
-dias = 28
-conversion = p["conversion"]
-
 # ═══════════════════════════════════════════════════════════════════════════════
-# CÁLCULOS - MES BASE
+# CÁLCULOS - MES ESTABILIZADO
 # ═══════════════════════════════════════════════════════════════════════════════
-flujo_mes = flujo * horas * dias
-clientes_mes = int(flujo_mes * conversion)
+flujo_peatonal_mes = flujo * horas * dias
+flujo_vehicular_mes = flujo_vehicular * horas * dias
+clientes_peatonales_mes = int(flujo_peatonal_mes * conversion)
+clientes_vehiculares_mes = int(flujo_vehicular_mes * captacion_vehicular)
+clientes_mes = clientes_peatonales_mes + clientes_vehiculares_mes
 
-# Ventas
 ventas_farmacia = clientes_mes * ticket
 consultas_mes = consultas * dias if m["consultorio"] else 0
 ventas_recetas = consultas_mes * surten * ticket_receta
@@ -662,42 +742,48 @@ gastos_variables = ventas_totales * gastos_var
 utilidad_neta = utilidad_bruta - gastos_fijos - gastos_variables
 margen_neto = utilidad_neta / ventas_totales if ventas_totales > 0 else 0
 
-# Ticket promedio ponderado (todas las fuentes de ingreso)
 clientes_totales = clientes_mes + (consultas_mes if m["consultorio"] else 0)
 ticket_prom = ventas_totales / clientes_totales if clientes_totales > 0 else 0
 
-# Break-even
-contribucion = 1 - cogs - gastos_var
-if contribucion > 0:
+# Break-even con margen de contribución ponderado real
+contribucion = ((ventas_totales - cogs_total - gastos_variables) / ventas_totales) if ventas_totales > 0 else 0
+if contribucion > 0 and ticket_prom > 0:
     ventas_be = gastos_fijos / contribucion
-    clientes_be = ventas_be / ticket if ticket > 0 else 0
+    clientes_be = ventas_be / ticket_prom
 else:
     ventas_be, clientes_be = float('inf'), float('inf')
 
-# ROI (inversion ya calculada desde session_state)
-roi_anual = (utilidad_neta * 12) / inversion if inversion > 0 else 0
-meses_recuperacion = inversion / utilidad_neta if utilidad_neta > 0 else float('inf')
+rampa = np.linspace(arranque_inicial, 1.0, meses_rampa)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PROYECCIÓN 12 MESES
 # ═══════════════════════════════════════════════════════════════════════════════
 proyeccion = []
-proyeccion_num = []  # Para gráficas
+proyeccion_num = []
+utilidades_mensuales = []
+caja_acumulada = -inversion
+meses_recuperacion = float('inf')
+
 for t in range(12):
-    factor = ((1 + crec) ** t) * est_vector[t]
+    if t < meses_rampa:
+        factor = rampa[t]
+    else:
+        factor = ((1 + crec) ** (t - meses_rampa + 1))
+    factor *= est_vector[t]
+
     vf = ventas_farmacia * factor
     vr = ventas_recetas * factor
     va = ventas_abarrotes * factor
     ic = ingresos_consulta * factor
     vt = vf + vr + va + ic
-    
+
     ct = vf * cogs + vr * cogs_receta + va * cogs_abarrotes
     ub = vt - ct
     gv = vt * gastos_var
-    un = ub - gastos_fijos - gv
+    gasto_extra_t = gasto_lanzamiento if t < 3 else 0
+    un = ub - gastos_fijos - gv - gasto_extra_t
     mn = un / vt if vt > 0 else 0
-    
-    # Para tabla (formateado)
+
     proyeccion.append({
         "Mes": t + 1,
         "Ventas": f"${round(vt):,}",
@@ -705,24 +791,45 @@ for t in range(12):
         "Util. Bruta": f"${round(ub):,}",
         "Gastos Fijos": f"${round(gastos_fijos):,}",
         "Gastos Var.": f"${round(gv):,}",
+        "Apertura": f"${round(gasto_extra_t):,}",
         "Util. Neta": f"${round(un):,}",
         "Margen %": f"{round(mn * 100, 1)}%",
     })
-    
-    # Para gráficas (numérico)
+
     proyeccion_num.append({
         "Mes": t + 1,
         "Ventas": round(vt),
         "Util. Neta": round(un),
+        "Caja Acumulada": round(caja_acumulada + un),
         "Margen %": round(mn * 100, 1),
     })
+    utilidades_mensuales.append(un)
+
+    caja_previa = caja_acumulada
+    caja_acumulada += un
+    if meses_recuperacion == float('inf') and caja_acumulada >= 0 and un > 0:
+        faltante = -caja_previa
+        meses_recuperacion = t + (faltante / un)
 
 df = pd.DataFrame(proyeccion)
 df_num = pd.DataFrame(proyeccion_num)
 
-# Calcular totales
 util_anual = df_num["Util. Neta"].sum()
 ventas_anual = df_num["Ventas"].sum()
+roi_anual = util_anual / inversion if inversion > 0 else 0
+
+if meses_recuperacion == float('inf'):
+    utilidad_run_rate = max(utilidades_mensuales[-1], utilidad_neta, 0)
+    remanente = inversion - util_anual
+    if utilidad_run_rate > 0 and remanente > 0:
+        meses_recuperacion = 12 + (remanente / utilidad_run_rate)
+
+ventas_mes_1 = df_num.iloc[0]["Ventas"]
+utilidad_mes_1 = df_num.iloc[0]["Util. Neta"]
+ventas_mes_estable = ventas_totales
+utilidad_mes_estable = utilidad_neta
+meses_recuperacion_fmt = f"{meses_recuperacion:.1f} meses" if np.isfinite(meses_recuperacion) else "N/A"
+anios_recuperacion_fmt = f"{meses_recuperacion/12:.1f} años" if np.isfinite(meses_recuperacion) else "N/A"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OUTPUT PRINCIPAL
@@ -742,29 +849,33 @@ st.title(f"📊 Corrida Financiera - {modelo}")
 st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,}")
 
 # Análisis de flujo y conversión
-st.markdown("### 👥 Análisis de Flujo Peatonal")
-personas_dia = flujo
+st.markdown("### 👥 Análisis de Tráfico y Demanda")
+peatones_dia = flujo * horas
+vehiculos_dia = flujo_vehicular * horas
+tickets_vehiculares_dia = vehiculos_dia * captacion_vehicular
 conversion_rate = conversion * 100
+captacion_rate = captacion_vehicular * 100
 
-col_flujo1, col_flujo2, col_flujo3 = st.columns(3)
+col_flujo1, col_flujo2, col_flujo3, col_flujo4 = st.columns(4)
 with col_flujo1:
-    st.metric("🚶 Pasan por día", f"{personas_dia:,}")
+    st.metric("🚶 Peatones/día", f"{peatones_dia:,}")
     st.caption("Flujo peatonal diario")
-    
 with col_flujo2:
-    st.metric("🛍️ Te compran", f"{clientes_mes:,}/mes")
-    st.caption(f"Solo {conversion_rate:.1f}% del flujo compra")
-    
+    st.metric("🚗 Vehículos/día", f"{vehiculos_dia:,}")
+    st.caption(f"Captas {captacion_rate:.1f}%")
 with col_flujo3:
+    st.metric("🛍️ Tickets/mes", f"{clientes_mes:,}")
+    st.caption(f"Conversión peatonal de {conversion_rate:.1f}%")
+with col_flujo4:
     st.metric("💳 Ticket promedio", f"${ticket_prom:,.0f}")
-    st.caption("Lo que gasta cada cliente")
+    st.caption("Ticket blended con servicios")
 
 # Explicación detallada del % de conversión por escenario
 st.markdown("### 🎯 ¿Qué significa tu escenario?")
 
 if escenario == "Conservador":
     st.warning(f"""
-    **🔴 ESCENARIO CONSERVADOR ({conversion_rate:.1f}% conversión)**
+    **🔴 ESCENARIO CONSERVADOR ({conversion_rate:.1f}% conversión peatonal)**
     
     **¿Qué significa?**
     - De cada 100 personas que pasan frente a tu farmacia, solo **{int(conversion_rate)} entran y compran**
@@ -783,7 +894,7 @@ if escenario == "Conservador":
     """)
 elif escenario == "Medio":
     st.info(f"""
-    **🟡 ESCENARIO MEDIO ({conversion_rate:.1f}% conversión)**
+    **🟡 ESCENARIO MEDIO ({conversion_rate:.1f}% conversión peatonal)**
     
     **¿Qué significa?**
     - De cada 100 personas que pasan, **{int(conversion_rate)} entran y compran**
@@ -802,7 +913,7 @@ elif escenario == "Medio":
     """)
 else:  # Alto
     st.success(f"""
-    **🟢 ESCENARIO ALTO ({conversion_rate:.1f}% conversión)**
+    **🟢 ESCENARIO ALTO ({conversion_rate:.1f}% conversión peatonal)**
     
     **¿Qué significa?**
     - De cada 100 personas que pasan, **{int(conversion_rate)} entran y compran**
@@ -826,8 +937,8 @@ st.markdown("### 📊 ¿Cómo afecta tu escenario a TODOS los números?")
 col_esc1, col_esc2, col_esc3 = st.columns(3)
 
 with col_esc1:
-    st.markdown("**🚶 Flujo Peatonal**")
-    st.metric("Personas/día", f"{flujo:,}")
+    st.markdown("**🚶 Tráfico Peatonal**")
+    st.metric("Peatones/día", f"{peatones_dia:,}")
     if escenario == "Conservador":
         st.caption("🔴 Ubicación con poco flujo")
     elif escenario == "Medio":
@@ -836,18 +947,18 @@ with col_esc1:
         st.caption("🟢 Mucho flujo peatonal")
 
 with col_esc2:
-    st.markdown("**💳 Ticket Promedio**")
-    st.metric("Gasto/cliente", f"${ticket_prom:,.0f}")
+    st.markdown("**🚗 Tráfico Vehicular**")
+    st.metric("Tickets desde autos/día", f"{tickets_vehiculares_dia:,.0f}")
     if escenario == "Conservador":
-        st.caption("🔴 Clientes más cautelosos")
+        st.caption("🔴 Baja captura por visibilidad")
     elif escenario == "Medio":
-        st.caption("🟡 Gasto promedio normal")
+        st.caption("🟡 Captura razonable")
     else:
-        st.caption("🟢 Clientes gastan más")
+        st.caption("🟢 Buena accesibilidad")
 
 with col_esc3:
     st.markdown("**📈 Crecimiento**")
-    crec_anual = p.get("crec", 0) * 12 * 100
+    crec_anual = ((1 + crec) ** 12 - 1) * 100
     st.metric("Crecimiento anual", f"{crec_anual:.1f}%")
     if escenario == "Conservador":
         st.caption("🔴 Crecimiento lento")
@@ -860,8 +971,8 @@ st.info(f"""
 **💡 En resumen:** El escenario **{escenario}** no solo afecta cuántos clientes te compran, 
 sino también cuánto gastan, qué tan rápido crece tu negocio, y qué márgenes puedes obtener.
 
-**¿Por qué?** En mejores ubicaciones puedes cobrar un poco más, los clientes compran más cosas, 
-y el boca a boca hace que crezcas más rápido. ¡Todo está conectado! 🔗
+**Modelo de arranque:** El mes 1 arranca en **{arranque_inicial*100:.0f}%** del nivel estabilizado
+y cargas **${gasto_lanzamiento:,}** por mes de apertura durante los primeros 3 meses.
 """)
 
 st.markdown("---")
@@ -877,33 +988,33 @@ if contribucion <= 0:
 st.markdown("### 🎯 ¿Es rentable este negocio?")
 
 # Semáforo de rentabilidad
-if utilidad_neta > 0 and meses_recuperacion < 24:
+if util_anual > 0 and meses_recuperacion < 30:
     st.success(f"""
     ✅ **¡SÍ ES RENTABLE!**
     
-    💰 **Ganarías ${utilidad_neta:,.0f} al mes** (después de pagar todo)
+    💰 **Mes 1: ${utilidad_mes_1:,.0f}** y luego estabilizas en **${utilidad_mes_estable:,.0f}/mes**
     
-    ⏱️ **Recuperas tu inversión en {meses_recuperacion:.1f} meses**
+    ⏱️ **Recuperas tu inversión en {meses_recuperacion_fmt}**
     
-    📈 **ROI del {roi_anual*100:.0f}% anual** (tu dinero crece {roi_anual*100:.0f}% cada año)
+    📈 **ROI del {roi_anual*100:.0f}% en el primer año** (ya considera rampa y apertura)
     """)
-elif utilidad_neta > 0:
+elif util_anual > 0:
     st.warning(f"""
     ⚠️ **ES RENTABLE, PERO TARDA**
     
-    💰 Ganarías ${utilidad_neta:,.0f} al mes
+    💰 **Mes 1: ${utilidad_mes_1:,.0f}** y estabilizas en **${utilidad_mes_estable:,.0f}/mes**
     
-    ⏱️ Pero recuperas inversión en {meses_recuperacion:.0f} meses ({meses_recuperacion/12:.1f} años)
+    ⏱️ Pero recuperas inversión en {meses_recuperacion_fmt} ({anios_recuperacion_fmt})
     
-    💡 Considera reducir gastos fijos o buscar mejor ubicación
+    💡 Conviene optimizar renta, mezcla de producto o tráfico antes de invertir
     """)
 else:
     st.error(f"""
     ❌ **NO ES RENTABLE**
     
-    📉 Perderías ${abs(utilidad_neta):,.0f} al mes
+    📉 El primer año cerraría con **${abs(util_anual):,.0f}** de pérdida acumulada
     
-    💡 Necesitas: más clientes, subir precios, o reducir gastos
+    💡 Necesitas más tráfico, mejor conversión, más margen o una estructura de costos más ligera
     """)
 
 # KPIs simplificados con explicaciones
@@ -911,29 +1022,40 @@ st.markdown("### 📊 Los números clave")
 
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.metric("👥 Clientes/mes", f"{clientes_mes:,}")
-    st.caption("Personas que te compran al mes")
+    st.metric("👥 Tickets/mes", f"{clientes_mes:,}")
+    st.caption("Tickets mensuales estabilizados")
     
 with c2:
-    st.metric("💵 Ventas/mes", f"${ventas_totales:,.0f}")
-    st.caption("Todo lo que entra de dinero")
+    st.metric("💵 Ventas mes 1", f"${ventas_mes_1:,.0f}")
+    st.caption("Ya con rampa de arranque")
     
 with c3:
-    st.metric("💰 Te queda/mes", f"${utilidad_neta:,.0f}")
-    st.caption("Tu ganancia real (después de pagar TODO)")
+    st.metric("💰 Utilidad mes 1", f"${utilidad_mes_1:,.0f}")
+    st.caption("Después de apertura y operación")
 
 c4, c5, c6 = st.columns(3)
 with c4:
-    st.metric("🎯 Punto de equilibrio", f"${ventas_be:,.0f}")
-    st.caption("Ventas mínimas para no perder")
+    st.metric("📈 Ventas estabilizadas", f"${ventas_mes_estable:,.0f}")
+    st.caption("Mes maduro sin rampa")
     
 with c5:
-    st.metric("⏱️ Recuperación", f"{meses_recuperacion:.1f} meses" if meses_recuperacion < 100 else "N/A")
-    st.caption("Tiempo para recuperar tu inversión")
+    st.metric("🎯 Punto de equilibrio", f"${ventas_be:,.0f}")
+    st.caption("Ventas mínimas para cubrir costos fijos")
     
 with c6:
-    st.metric("📈 ROI Anual", f"{roi_anual*100:.0f}%")
-    st.caption("Cuánto crece tu dinero al año")
+    st.metric("📈 ROI Año 1", f"{roi_anual*100:.0f}%")
+    st.caption("Ya incluye meses flojos")
+
+c7, c8, c9 = st.columns(3)
+with c7:
+    st.metric("💼 Utilidad estabilizada", f"${utilidad_mes_estable:,.0f}")
+    st.caption("Run-rate operativo esperado")
+with c8:
+    st.metric("⏱️ Recuperación", f"{meses_recuperacion:.1f} meses" if meses_recuperacion < 120 else "N/A")
+    st.caption("Tiempo para recuperar tu inversión")
+with c9:
+    st.metric("💸 Caja al mes 12", f"${df_num.iloc[-1]['Caja Acumulada']:,.0f}")
+    st.caption("Caja acumulada neta")
 
 # ¿De dónde vienen las ventas?
 st.markdown("### 💵 ¿De dónde viene el dinero?")
@@ -1002,26 +1124,21 @@ with col_g2:
     st.metric("🏢 Gastos Fijos", f"${gastos_fijos:,}")
     st.caption("Renta, nómina, luz, etc.")
 with col_g3:
-    st.metric("📊 Otros gastos", f"${gastos_extras:,.0f}")
-    st.caption("Comisiones, bolsas, etc.")
+    st.metric("📊 Gastos variables", f"${gastos_extras:,.0f}")
+    st.caption(f"{gasto_variable_pct:.1f}% de las ventas")
 with col_g4:
     total_gastos = costo_producto + gastos_fijos + gastos_extras
     st.metric("📉 Total gastos", f"${total_gastos:,.0f}")
-    st.caption("Todo lo que sale")
+    st.caption("Antes de gastos de apertura")
 
 # Desglose detallado (colapsable)
-with st.expander("📋 Ver detalle de inversión y gastos fijos"):
-    col_inv, col_gf = st.columns(2)
+with st.expander("📋 Ver detalle de inversión y gastos"):
+    col_inv, col_gf, col_gv = st.columns(3)
 
     with col_inv:
         st.markdown("**💰 Tu Inversión Inicial**")
-        if "inversion_items" in st.session_state:
-            inv_df = pd.DataFrame([
-                {"Concepto": k, "Monto": f"${v:,}"} 
-                for k, v in st.session_state.inversion_items.items()
-            ])
-            st.dataframe(inv_df, use_container_width=True, hide_index=True)
-            st.markdown(f"**Total: ${inversion:,}**")
+        st.metric("Monto total", f"${inversion:,.0f}")
+        st.caption("Editable desde el panel lateral")
 
     with col_gf:
         st.markdown("**🏢 Tus Gastos Fijos Mensuales**")
@@ -1033,13 +1150,20 @@ with st.expander("📋 Ver detalle de inversión y gastos fijos"):
             st.dataframe(gf_df, use_container_width=True, hide_index=True)
             st.markdown(f"**Total: ${gastos_fijos:,}/mes**")
 
+    with col_gv:
+        st.markdown("**📊 Tu Gasto Variable**")
+        st.metric("Porcentaje", f"{gasto_variable_pct:.1f}%")
+        st.caption(f"Más ${gasto_lanzamiento:,}/mes de apertura en meses 1-3")
+
 # Proyección 12 meses simplificada
 st.markdown("### 📅 ¿Cómo se ve el primer año?")
 # Tabla simplificada
 df_simple = pd.DataFrame([{
     "Mes": p["Mes"],
     "Ventas": p["Ventas"],
+    "Apertura": p["Apertura"],
     "Te queda": p["Util. Neta"],
+    "Caja acumulada": f"${df_num.iloc[p['Mes'] - 1]['Caja Acumulada']:,.0f}",
 } for p in proyeccion])
 st.dataframe(df_simple, use_container_width=True, hide_index=True)
 
@@ -1051,7 +1175,7 @@ with col_anual2:
 
 # Gráfica simple
 st.markdown("### 📈 Evolución de tu negocio")
-st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta"]])
+st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta", "Caja Acumulada"]])
 
 # Resumen final claro
 st.markdown("---")
@@ -1065,8 +1189,9 @@ st.markdown(f"""
 **En palabras simples:**
 - 💰 Inviertes **${inversion:,}** una sola vez para abrir
 - 🏢 Pagas **${gastos_fijos:,}** cada mes de gastos fijos (renta, luz, sueldos...)
-- 📈 Vendes **${ventas_totales:,.0f}** al mes y te quedan **${utilidad_neta:,.0f}** de ganancia
-- ⏱️ En **{meses_recuperacion:.0f} meses** ({meses_recuperacion/12:.1f} años) recuperas lo que invertiste
+- 📈 En el **mes 1** vendes **${ventas_mes_1:,.0f}**; ya estabilizado vendes **${ventas_totales:,.0f}** al mes
+- 💵 El **mes 1** puedes ganar o perder **${utilidad_mes_1:,.0f}**; estabilizado te quedan **${utilidad_neta:,.0f}**
+- ⏱️ Recuperas lo invertido en **{meses_recuperacion_fmt}** ({anios_recuperacion_fmt})
 - 🎯 Necesitas vender mínimo **${ventas_be:,.0f}/mes** para no perder dinero
 """)
 
@@ -1075,7 +1200,24 @@ st.markdown(f"""
 # ═══════════════════════════════════════════════════════════════════════════════
 def generar_reporte_pdf():
     """Genera un reporte PDF profesional para presentar oportunidad de franquicia"""
-    
+
+    def crear_logo_pdf():
+        """Dibuja un logo simple +F para usar en el encabezado del PDF."""
+        logo = Drawing(78, 52)
+        azul_logo = colors.Color(0.145, 0.31, 0.58)
+        verde_logo = colors.Color(0.071, 0.62, 0.267)
+
+        # Símbolo +
+        logo.add(Rect(0, 20, 26, 8, fillColor=azul_logo, strokeColor=azul_logo))
+        logo.add(Rect(18, 0, 8, 44, fillColor=azul_logo, strokeColor=azul_logo))
+
+        # Letra F
+        logo.add(Rect(38, 0, 8, 44, fillColor=verde_logo, strokeColor=verde_logo))
+        logo.add(Rect(46, 36, 30, 8, fillColor=verde_logo, strokeColor=verde_logo))
+        logo.add(Rect(46, 20, 22, 8, fillColor=verde_logo, strokeColor=verde_logo))
+
+        return logo
+
     # Obtener datos del franquiciatario
     datos_f = st.session_state.get('datos_franquicia', {})
     
@@ -1096,9 +1238,24 @@ def generar_reporte_pdf():
     
     # Contenido del PDF
     story = []
-    
-    # Encabezado profesional
-    story.append(Paragraph("<b>+FARMACIA LÍBANO</b>", title_style))
+
+    # Encabezado profesional con logo
+    header_table = Table(
+        [[
+            Paragraph("<b>+FARMACIA LÍBANO</b>", title_style),
+            crear_logo_pdf()
+        ]],
+        colWidths=[5.6 * inch, 1.0 * inch]
+    )
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(header_table)
     story.append(Paragraph("OPORTUNIDAD DE INVERSIÓN - ANÁLISIS FINANCIERO", styles['Heading2']))
     story.append(Paragraph("<i>Siempre al cuidado de tu salud</i>", subtitle_style))
     story.append(Spacer(1, 15))
@@ -1122,13 +1279,32 @@ def generar_reporte_pdf():
     """
     story.append(Paragraph(modelo_info, styles['Normal']))
     story.append(Spacer(1, 15))
+
+    # Guía para el cliente
+    story.append(Paragraph("📘 ¿Cómo leer este reporte?", heading_style))
+    lectura_desc = f"""
+    Este documento fue preparado para ayudarte a evaluar de forma clara el potencial financiero de la sucursal propuesta. 
+    La corrida traduce tus supuestos de <b>inversión inicial</b>, <b>tráfico</b>, <b>horario de operación</b>, 
+    <b>ticket promedio</b> y <b>estructura de costos</b> en una proyección de ventas, utilidad y recuperación de inversión.<br/><br/>
+    
+    <b>Qué debes revisar como cliente:</b><br/>
+    • <b>Mes 1:</b> muestra el arranque realista, incluyendo el periodo de adaptación y gastos de apertura<br/>
+    • <b>Mes estabilizado:</b> muestra cómo se comportaría la sucursal una vez que opere con mayor normalidad<br/>
+    • <b>Primer año:</b> resume el impacto total del arranque, el crecimiento y la rentabilidad acumulada<br/>
+    • <b>Punto de equilibrio:</b> indica el nivel mínimo de venta mensual necesario para cubrir costos fijos<br/><br/>
+    
+    La intención es que puedas usar este reporte para tomar una decisión más informada, comparar escenarios y detectar 
+    qué variables tienen mayor impacto en la rentabilidad del proyecto.
+    """
+    story.append(Paragraph(lectura_desc, styles['Normal']))
+    story.append(Spacer(1, 18))
     
     # Explicación del escenario (VENDEDOR)
     story.append(Paragraph("🎯 Análisis del Escenario", heading_style))
     
     if escenario == "Conservador":
         escenario_desc = f"""
-        <b>Escenario Conservador ({conversion_rate:.1f}% de conversión):</b><br/>
+        <b>Escenario Conservador ({conversion_rate:.1f}% de conversión peatonal):</b><br/>
         Este análisis considera condiciones iniciales prudentes, ideal para inversores que prefieren proyecciones realistas. 
         De cada 100 personas que pasan por tu farmacia, {int(conversion_rate)} realizarán compras. 
         <b>Es el escenario perfecto para comenzar con confianza,</b> ya que cualquier mejora en ubicación o servicio 
@@ -1136,7 +1312,7 @@ def generar_reporte_pdf():
         """
     elif escenario == "Medio":
         escenario_desc = f"""
-        <b>Escenario Medio ({conversion_rate:.1f}% de conversión):</b><br/>
+        <b>Escenario Medio ({conversion_rate:.1f}% de conversión peatonal):</b><br/>
         Representa las condiciones más probables de operación con ubicación decente y servicio establecido. 
         De cada 100 visitantes, {int(conversion_rate)} se convierten en clientes. 
         <b>Este es nuestro escenario recomendado</b> basado en el desempeño histórico de franquiciados exitosos 
@@ -1144,7 +1320,7 @@ def generar_reporte_pdf():
         """
     else:  # Alto
         escenario_desc = f"""
-        <b>Escenario Alto ({conversion_rate:.1f}% de conversión):</b><br/>
+        <b>Escenario Alto ({conversion_rate:.1f}% de conversión peatonal):</b><br/>
         Proyecta resultados en ubicaciones premium con excelente flujo peatonal y mínima competencia. 
         {int(conversion_rate)} de cada 100 personas se convierten en clientes. 
         <b>Representa el potencial máximo alcanzable</b> con ubicación estratégica y operación optimizada.
@@ -1191,12 +1367,14 @@ def generar_reporte_pdf():
     # Tabla de métricas principales (mejorada)
     metricas_data = [
         ['MÉTRICA CLAVE', 'RESULTADO'],
-        ['Clientes mensuales', f'{clientes_mes:,} personas'],
-        ['Ingresos mensuales', f'${ventas_totales:,.0f}'],
-        ['Utilidad neta mensual', f'${utilidad_neta:,.0f}'],
+        ['Tickets mensuales estabilizados', f'{clientes_mes:,} tickets'],
+        ['Ingresos mes 1', f'${ventas_mes_1:,.0f}'],
+        ['Utilidad neta mes 1', f'${utilidad_mes_1:,.0f}'],
+        ['Ingresos estabilizados', f'${ventas_totales:,.0f}'],
+        ['Utilidad neta estabilizada', f'${utilidad_neta:,.0f}'],
         ['Margen de utilidad', f'{margen_neto*100:.1f}%'],
-        ['ROI anualizado', f'{roi_anual*100:.1f}%'],
-        ['Período de recuperación', f'{meses_recuperacion:.1f} meses'],
+        ['ROI primer año', f'{roi_anual*100:.1f}%'],
+        ['Período de recuperación', meses_recuperacion_fmt],
         ['Punto de equilibrio', f'${ventas_be:,.0f}/mes'],
         ['Ingresos primer año', f'${ventas_anual:,.0f}'],
         ['Utilidad primer año', f'${util_anual:,.0f}'],
@@ -1219,7 +1397,7 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 20))
     
     # Estructura de ingresos (MÁS VISUAL)
-    story.append(Paragraph("💰 Estructura de Ingresos Mensuales", heading_style))
+    story.append(Paragraph("💰 Estructura de Ingresos Mensuales Estabilizados", heading_style))
     
     ventas_data = [['LÍNEA DE NEGOCIO', 'INGRESOS', 'PARTICIPACIÓN']]
     ventas_data.append(['💊 Farmacia', f'${ventas_farmacia:,.0f}', f'{(ventas_farmacia/ventas_totales*100):.1f}%'])
@@ -1231,7 +1409,7 @@ def generar_reporte_pdf():
     if m["abarrotes"]:
         ventas_data.append(['🛒 Conveniencia', f'${ventas_abarrotes:,.0f}', f'{(ventas_abarrotes/ventas_totales*100):.1f}%'])
     
-    ventas_data.append(['🎯 TOTAL MENSUAL', f'${ventas_totales:,.0f}', '100.0%'])
+    ventas_data.append(['🎯 TOTAL MENSUAL ESTABILIZADO', f'${ventas_totales:,.0f}', '100.0%'])
     
     ventas_table = Table(ventas_data, colWidths=[2.2*inch, 1.8*inch, 1.5*inch])
     ventas_table.setStyle(TableStyle([
@@ -1291,26 +1469,26 @@ def generar_reporte_pdf():
     # Evaluación de la oportunidad (MUY VENDEDOR)
     story.append(Paragraph("🏆 Evaluación de la Oportunidad", heading_style))
     
-    if utilidad_neta > 0 and meses_recuperacion < 24:
+    if util_anual > 0 and meses_recuperacion < 30:
         eval_color = colors.Color(0, 0.5, 0)  # Verde
         conclusion = f"""
         <b>✅ OPORTUNIDAD EXCELENTE</b><br/><br/>
         
-        <b>Rentabilidad Comprobada:</b> Genera ${utilidad_neta:,.0f} de utilidad mensual neta<br/>
-        <b>Recuperación Rápida:</b> Inversión recuperada en {meses_recuperacion:.1f} meses<br/>
-        <b>ROI Atractivo:</b> {roi_anual*100:.1f}% anual - superior a alternativas tradicionales<br/>
+        <b>Arranque Controlado:</b> El proyecto soporta el periodo inicial y cierra con utilidad positiva en el primer año<br/>
+        <b>Recuperación Rápida:</b> Inversión recuperada en {meses_recuperacion_fmt}<br/>
+        <b>ROI Atractivo:</b> {roi_anual*100:.1f}% en el primer año, ya considerando rampa de arranque<br/>
         <b>Mercado Estable:</b> Sector salud con demanda constante y creciente<br/><br/>
         
         <b>RECOMENDACIÓN:</b> Proceder con la inversión. Los números demuestran 
         una oportunidad sólida con riesgo controlado y potencial de crecimiento.
         """
-    elif utilidad_neta > 0:
+    elif util_anual > 0:
         eval_color = colors.Color(0.7, 0.7, 0)  # Amarillo
         conclusion = f"""
         <b>⚠️ OPORTUNIDAD VIABLE CON CONSIDERACIONES</b><br/><br/>
         
-        <b>Rentabilidad Positiva:</b> ${utilidad_neta:,.0f}/mes en utilidades<br/>
-        <b>Recuperación Moderada:</b> {meses_recuperacion:.1f} meses para recuperar inversión<br/>
+        <b>Rentabilidad Positiva:</b> El primer año es positivo, pero con recuperación más lenta<br/>
+        <b>Recuperación Moderada:</b> {meses_recuperacion_fmt} para recuperar inversión<br/>
         <b>Potencial de Mejora:</b> Optimizaciones operativas pueden acelerar retornos<br/><br/>
         
         <b>RECOMENDACIÓN:</b> Evaluar mejoras en ubicación o eficiencias operativas 
@@ -1342,13 +1520,31 @@ def generar_reporte_pdf():
     <b>2. FINANCIAMIENTO:</b> Estructurar inversión inicial y capital de trabajo<br/>
     <b>3. CAPACITACIÓN:</b> Programa integral de entrenamiento Farmacia Líbano<br/>
     <b>4. PUESTA EN MARCHA:</b> Plan de lanzamiento y marketing inicial<br/>
-    <b>5. SEGUIMIENTO:</b> Monitoreo mensual de KPIs y optimización continua<br/><br/>
-    
-    <b>Contacto Franquicias:</b> franquicias@farmacialibano.com<br/>
-    <b>Teléfono:</b> 800-LIBANO (800-542-2266)<br/>
+    <b>5. SEGUIMIENTO:</b> Monitoreo mensual de KPIs y optimización continua<br/>
     """
     
     story.append(Paragraph(next_steps, styles['Normal']))
+
+    # Disclaimer profesional
+    story.append(Spacer(1, 18))
+    story.append(Paragraph("⚖️ Consideraciones Importantes", heading_style))
+    disclaimer_style = ParagraphStyle(
+        'Disclaimer',
+        parent=styles['Normal'],
+        fontSize=9.5,
+        leading=13,
+        textColor=colors.Color(0.35, 0.35, 0.35)
+    )
+    disclaimer_text = """
+    <b>Disclaimer:</b> Esta corrida financiera es ilustrativa y fue elaborada como una herramienta de análisis comercial 
+    para apoyar tu evaluación. Las proyecciones presentadas no constituyen una garantía de desempeño, rentabilidad, 
+    recuperación de inversión ni flujo futuro. Los resultados reales pueden variar de forma material según factores como 
+    ubicación, competencia, ejecución operativa, horarios de apertura, mezcla de productos, nivel de servicio, estacionalidad, 
+    disponibilidad de personal, condiciones de mercado y cambios regulatorios. Este reporte debe utilizarse como referencia 
+    para analizar escenarios y no sustituye una validación en campo, un estudio de mercado, una revisión fiscal, legal u 
+    operativa, ni una asesoría financiera independiente antes de tomar una decisión de inversión.
+    """
+    story.append(Paragraph(disclaimer_text, disclaimer_style))
     
     # Pie de página profesional
     story.append(Spacer(1, 25))
