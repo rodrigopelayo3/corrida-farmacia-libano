@@ -93,6 +93,7 @@ def registrar_corrida(datos_franquicia, usuario):
     st.session_state['registro_accesos'].append(registro)
 
 CODIGOS_ACCESO = cargar_codigos()
+CODIGO_ACCESO_DIRECTO = "0301"
 
 # Verificar si el usuario ya está autenticado
 if 'acceso_autorizado' not in st.session_state:
@@ -125,7 +126,18 @@ if not st.session_state['acceso_autorizado']:
             submit = st.form_submit_button("🚀 Acceder", use_container_width=True)
             
             if submit:
-                if codigo in CODIGOS_ACCESO:
+                if codigo == CODIGO_ACCESO_DIRECTO:
+                    st.session_state['acceso_autorizado'] = True
+                    st.session_state['usuario_nombre'] = "Acceso Directo"
+                    st.session_state['datos_franquicia'] = {
+                        'nombre': "Consulta Interna",
+                        'ubicacion': "Sin captura",
+                        'proposito': "Acceso directo",
+                        'notas': ""
+                    }
+                    registrar_acceso(codigo, "Acceso Directo")
+                    st.rerun()
+                elif codigo in CODIGOS_ACCESO:
                     st.session_state['acceso_autorizado'] = True
                     st.session_state['usuario_nombre'] = CODIGOS_ACCESO[codigo]
                     registrar_acceso(codigo, CODIGOS_ACCESO[codigo])
@@ -462,41 +474,47 @@ inversion = st.session_state.inversion_personalizada
 cogs = p["cogs"]
 cogs_receta = p.get("cogs_receta", cogs)
 cogs_abarrotes = p.get("cogs_abarrotes", 0.88)
-captacion_vehicular_default = {"Conservador": 0.006, "Medio": 0.012, "Alto": 0.02}[escenario]
-gastos_variables_default = {"🏪 Mini": 4.5, "🩺 Consultorio": 5.0, "🛒 Super": 5.8}
+conversion_default = {"Conservador": 3.0, "Medio": 3.0, "Alto": 3.0}
+captacion_vehicular_default = {"Conservador": 0.3, "Medio": 0.5, "Alto": 0.8}
+gastos_variables_default = {"🏪 Mini": 3.0, "🩺 Consultorio": 3.0, "🛒 Super": 3.0}
+surten_default = {"Conservador": 50.0, "Medio": 50.0, "Alto": 50.0}
 
 with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
     st.caption("Usa una hora típica y define tu horario real de operación.")
     flujo = st.number_input(
         "Peatones por hora",
-        10, 400, p["flujo"],
+        min_value=20,
+        max_value=200,
+        value=min(max(p["flujo"], 20), 200),
+        step=5,
         help="Personas caminando frente al local en una hora normal"
     )
     flujo_vehicular = st.number_input(
         "Vehículos por hora",
-        0, 800, max(20, int(p["flujo"] * 1.5)),
+        min_value=0,
+        max_value=300,
+        value=min(max(30, int(p["flujo"] * 1.5)), 300),
+        step=10,
         help="Autos o motos que pasan frente al local"
     )
-    conversion = st.slider(
+    conversion = st.number_input(
         "Conversión peatonal (%)",
-        min_value=2.0,
-        max_value=30.0,
-        value=float(round(p["conversion"] * 100, 1)),
+        min_value=0.1,
+        value=float(conversion_default[escenario]),
         step=0.5,
         help="Porcentaje de peatones que entra y compra"
     ) / 100
-    captacion_vehicular = st.slider(
+    captacion_vehicular = st.number_input(
         "Captación vehicular (%)",
         min_value=0.0,
-        max_value=6.0,
-        value=float(round(captacion_vehicular_default * 100, 1)),
+        value=float(captacion_vehicular_default[escenario]),
         step=0.1,
         help="Porcentaje de vehículos que sí se detienen a comprar"
     ) / 100
-    horas = st.slider(
+    horas = st.number_input(
         "Horas abiertas por día",
         min_value=8,
-        max_value=24,
+        max_value=16,
         value=12,
         step=1,
         help="Horario diario de operación de la sucursal"
@@ -521,7 +539,6 @@ with st.sidebar.expander("🧾 Gasto variable", expanded=False):
     gasto_variable_pct = st.number_input(
         "Gasto variable sobre ventas (%)",
         min_value=0.0,
-        max_value=20.0,
         value=st.session_state["gasto_variable_simple"],
         step=0.1,
         key="gasto_variable_simple",
@@ -534,7 +551,10 @@ with st.sidebar.expander("🛒 ¿Cuánto compra cada cliente?", expanded=True):
     st.caption("💡 El ticket promedio es lo que gasta un cliente típico")
     ticket = st.number_input(
         "Ticket promedio farmacia ($)", 
-        40, 300, p["ticket"],
+        min_value=50,
+        max_value=220,
+        value=min(max(p["ticket"], 50), 220),
+        step=5,
         help="¿Cuánto gasta en promedio un cliente en farmacia?"
     )
     
@@ -549,25 +569,33 @@ if m["consultorio"]:
         st.caption("💡 El consultorio genera ingresos extra y atrae clientes a la farmacia")
         consultas = st.number_input(
             "Consultas por día", 
-            0, 40, p.get("consultas", 0),
+            min_value=0,
+            max_value=30,
+            value=min(max(p.get("consultas", 0), 0), 30),
+            step=1,
             help="¿Cuántas consultas médicas esperas al día?"
         )
         ingreso_consulta = st.number_input(
             "Cobro por consulta ($)", 
-            0, 150, p.get("ingreso_consulta", 40),
+            min_value=0,
+            max_value=120,
+            value=min(max(p.get("ingreso_consulta", 40), 0), 120),
+            step=5,
             help="¿Cuánto cobras por cada consulta?"
         )
         ticket_receta = st.number_input(
             "Compra promedio con receta ($)", 
-            50, 400, p.get("ticket_receta", 120),
+            min_value=80,
+            max_value=320,
+            value=min(max(p.get("ticket_receta", 120), 80), 320),
+            step=10,
             help="Los pacientes con receta gastan más"
         )
-        surten = st.slider(
+        surten = st.number_input(
             "Pacientes que surten en tu farmacia (%)",
-            min_value=20.0,
-            max_value=100.0,
-            value=float(round(p.get("surten", 0.6) * 100, 1)),
-            step=1.0,
+            min_value=0.0,
+            value=float(surten_default[escenario]),
+            step=5.0,
             help="No todos los pacientes compran la receta contigo"
         ) / 100
         
@@ -676,23 +704,20 @@ gastos_fijos = sum(st.session_state.gastos_fijos_items.values()) if "gastos_fijo
 # Proyección con rampa de arranque
 with st.sidebar.expander("📈 Arranque y crecimiento", expanded=True):
     st.caption("Un negocio suele arrancar flojo, crecer rápido al inicio y luego estabilizarse.")
-    arranque_inicial = st.slider(
-        "Ventas del mes 1 vs mes estabilizado (%)",
-        min_value=30,
-        max_value=95,
-        value=55,
-        step=5,
-        help="Qué porcentaje del nivel estabilizado alcanzas en el primer mes"
-    ) / 100
-    meses_rampa = st.slider(
+    arranque_opcion = st.selectbox(
+        "Fuerza del arranque",
+        ["Normal", "Lento", "Fuerte"],
+        index=0,
+        help="Qué tan cerca arranca el mes 1 del nivel estabilizado"
+    )
+    arranque_inicial = {"Lento": 0.45, "Normal": 0.55, "Fuerte": 0.70}[arranque_opcion]
+    meses_rampa = st.selectbox(
         "Meses para estabilizar la sucursal",
-        min_value=3,
-        max_value=9,
-        value=6,
-        step=1,
+        [3, 4, 5, 6],
+        index=1,
         help="Meses que tardas en llegar al nivel operativo normal"
     )
-    crec_opcion = st.radio(
+    crec_opcion = st.selectbox(
         "Crecimiento mensual una vez estabilizado",
         ["🐢 Conservador (1%/mes)", "🚶 Moderado (3%/mes)", "🚀 Agresivo (5%/mes)"],
         index=1
@@ -701,6 +726,7 @@ with st.sidebar.expander("📈 Arranque y crecimiento", expanded=True):
     gasto_lanzamiento = st.number_input(
         "Gasto extra de apertura por mes (meses 1-3)",
         min_value=0,
+        max_value=40000,
         value={"🏪 Mini": 12000, "🩺 Consultorio": 18000, "🛒 Super": 25000}[modelo],
         step=1000,
         help="Publicidad de apertura, promociones, contratación y ajustes iniciales"
@@ -1282,10 +1308,31 @@ def generar_reporte_pdf():
 
     # Guía para el cliente
     story.append(Paragraph("📘 ¿Cómo leer este reporte?", heading_style))
+    nivel_trafico = (
+        "alto" if flujo_peatonal_dia >= 1200 else
+        "medio" if flujo_peatonal_dia >= 700 else
+        "moderado"
+    )
+    lectura_arranque = (
+        "prudente" if arranque_inicial <= 0.45 else
+        "balanceado" if arranque_inicial <= 0.60 else
+        "fuerte"
+    )
+    lectura_rentabilidad = (
+        "una recuperación rápida" if np.isfinite(meses_recuperacion) and meses_recuperacion <= 24 else
+        "una recuperación gradual" if np.isfinite(meses_recuperacion) and meses_recuperacion <= 36 else
+        "una recuperación lenta o todavía no visible en el primer horizonte"
+    )
     lectura_desc = f"""
     Este documento fue preparado para ayudarte a evaluar de forma clara el potencial financiero de la sucursal propuesta. 
     La corrida traduce tus supuestos de <b>inversión inicial</b>, <b>tráfico</b>, <b>horario de operación</b>, 
     <b>ticket promedio</b> y <b>estructura de costos</b> en una proyección de ventas, utilidad y recuperación de inversión.<br/><br/>
+
+    <b>Con los datos capturados en esta corrida:</b><br/>
+    • Se está analizando una sucursal con <b>{horas} horas abiertas por día</b><br/>
+    • El flujo estimado es <b>{nivel_trafico}</b>, con aproximadamente <b>{flujo_peatonal_dia:,.0f} peatones</b> y <b>{flujo_vehicular_dia:,.0f} vehículos</b> al día<br/>
+    • La conversión estimada es de <b>{conversion_rate:.1f}% peatonal</b> y <b>{captacion_rate:.1f}% vehicular</b><br/>
+    • El arranque proyectado es <b>{lectura_arranque}</b>, y el análisis sugiere <b>{lectura_rentabilidad}</b><br/><br/>
     
     <b>Qué debes revisar como cliente:</b><br/>
     • <b>Mes 1:</b> muestra el arranque realista, incluyendo el periodo de adaptación y gastos de apertura<br/>
@@ -1294,9 +1341,25 @@ def generar_reporte_pdf():
     • <b>Punto de equilibrio:</b> indica el nivel mínimo de venta mensual necesario para cubrir costos fijos<br/><br/>
     
     La intención es que puedas usar este reporte para tomar una decisión más informada, comparar escenarios y detectar 
-    qué variables tienen mayor impacto en la rentabilidad del proyecto.
+    qué variables tienen mayor impacto en la rentabilidad del proyecto. Si ajustas tráfico, horario, ticket o inversión, 
+    el análisis cambia y el reporte se adapta automáticamente para reflejar ese nuevo escenario.
     """
     story.append(Paragraph(lectura_desc, styles['Normal']))
+    story.append(Spacer(1, 18))
+
+    # Resumen sencillo para cliente no técnico
+    story.append(Paragraph("🧭 Lectura simple del escenario", heading_style))
+    resumen_simple = f"""
+    <b>En palabras simples:</b><br/>
+    Hoy este análisis estima que con una inversión de <b>${inversion:,.0f}</b>, una operación de <b>{horas} horas diarias</b> 
+    y un ticket promedio de <b>${ticket:,.0f}</b>, la sucursal puede vender alrededor de <b>${ventas_mes_1:,.0f}</b> en su primer mes 
+    y acercarse a <b>${ventas_totales:,.0f}</b> mensuales cuando ya opere de forma estabilizada.<br/><br/>
+    
+    Esto significa que el negocio no se evalúa solo por “si gana o pierde”, sino por <b>qué tan rápido arranca</b>, 
+    <b>cuánto tarda en madurar</b> y <b>cuánto tarda en recuperar la inversión</b>. Por eso este reporte separa claramente 
+    el arranque, el punto estable y el resultado del primer año.
+    """
+    story.append(Paragraph(resumen_simple, styles['Normal']))
     story.append(Spacer(1, 18))
     
     # Explicación del escenario (VENDEDOR)
