@@ -16,6 +16,7 @@ import io
 import base64
 import json
 import urllib.request
+from html import escape
 
 st.set_page_config(
     page_title="Corrida Financiera - Farmacia Líbano",
@@ -270,8 +271,8 @@ datos_f = st.session_state['datos_franquicia']
 col_h1, col_h2, col_h3 = st.columns([3, 2, 1])
 with col_h1:
     st.markdown(f"""
-    <div style="font-size: 14px; color: #666;">
-        <strong style="color: #003D7A;">{datos_f['nombre']}</strong> · {datos_f['ubicacion']} · {datos_f['proposito']}
+    <div style="font-size: 14px; color: #d8e6f5;">
+        <strong style="color: #8ac5ff;">{datos_f['nombre']}</strong> · {datos_f['ubicacion']} · {datos_f['proposito']}
     </div>
     """, unsafe_allow_html=True)
 with col_h2:
@@ -290,12 +291,34 @@ AZUL = "#003D7A"
 
 st.markdown(f"""
 <style>
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
+        background:
+            radial-gradient(circle at top right, rgba(36, 92, 156, 0.18), transparent 22%),
+            radial-gradient(circle at top left, rgba(18, 74, 124, 0.14), transparent 16%),
+            linear-gradient(180deg, #020d1f 0%, #05162f 40%, #08284b 100%);
+    }}
+    [data-testid="stHeader"] {{
+        background: rgba(2, 13, 31, 0.90);
+        border-bottom: 1px solid rgba(138, 197, 255, 0.10);
+    }}
+    [data-testid="stAppViewBlockContainer"] {{
+        padding-top: 2rem;
+    }}
+    .main, .main p, .main li, .main label, .main span {{
+        color: #e6eef7;
+    }}
+    .main small, .main .stCaption, div[data-testid="stCaptionContainer"] p {{
+        color: #bed0e4 !important;
+    }}
+    .main hr {{
+        border-color: rgba(162, 184, 210, 0.12);
+    }}
     /* Header y títulos */
     .main h1 {{
-        color: {AZUL} !important;
+        color: #f6fbff !important;
     }}
     .main h2, .main h3 {{
-        color: {VERDE} !important;
+        color: #dff5eb !important;
     }}
     
     /* Sidebar */
@@ -313,9 +336,21 @@ st.markdown(f"""
     }}
     
     /* Metrics */
+    [data-testid="stMetric"] {{
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(214, 231, 248, 0.11);
+        border-radius: 18px;
+        padding: 14px 16px 12px 16px;
+        min-height: 138px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }}
+    [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {{
+        color: #dce8f6 !important;
+        font-weight: 700 !important;
+    }}
     [data-testid="stMetricValue"] {{
-        color: {AZUL} !important;
-        font-weight: bold;
+        color: #f6fbff !important;
+        font-weight: 800 !important;
     }}
     [data-testid="stMetricDelta"] {{
         color: {VERDE} !important;
@@ -362,12 +397,263 @@ st.markdown(f"""
         color: {VERDE};
     }}
     .logo-blue {{
-        color: {AZUL};
+        color: #3b8ed8;
     }}
     .logo-slogan {{
         font-style: italic;
+        color: #8ac5ff;
+        font-size: 14px;
+    }}
+
+    .sidebar-scenario-box {{
+        background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 100%);
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 16px;
+        padding: 14px 14px 10px 14px;
+        margin: 8px 0 14px 0;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }}
+    .sidebar-scenario-title {{
+        color: #dff5eb;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 10px;
+    }}
+    .sidebar-scenario-grid {{
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }}
+    .sidebar-scenario-kpi {{
+        background: rgba(4, 20, 37, 0.32);
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 12px;
+        padding: 10px 12px;
+    }}
+    .sidebar-scenario-kpi span {{
+        display: block;
+        color: #b8cce1 !important;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 2px;
+    }}
+    .sidebar-scenario-kpi strong {{
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.1;
+    }}
+
+    .sales-hero {{
+        background: linear-gradient(135deg, {AZUL} 0%, #0b5a97 58%, #dff5eb 58%, #f7fbf8 100%);
+        border-radius: 22px;
+        padding: 26px 28px;
+        margin: 8px 0 24px 0;
+        box-shadow: 0 18px 38px rgba(0, 61, 122, 0.12);
+    }}
+    .sales-hero h2 {{
+        margin: 0 0 8px 0;
+        color: white !important;
+        font-size: 32px;
+        line-height: 1.05;
+    }}
+    .sales-hero p {{
+        margin: 0;
+        color: rgba(255,255,255,0.92);
+        font-size: 14px;
+        line-height: 1.5;
+        max-width: 640px;
+    }}
+    .sales-badges {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 14px 0 18px 0;
+    }}
+    .sales-badge {{
+        display: inline-block;
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 999px;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 12px;
+        letter-spacing: 0.02em;
+    }}
+    .sales-badge-light {{
+        background: rgba(0, 166, 81, 0.10);
+        border: 1px solid rgba(0, 166, 81, 0.20);
+        color: {VERDE};
+    }}
+    .sales-grid {{
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+    }}
+    .sales-stat {{
+        background: rgba(255,255,255,0.92);
+        border-radius: 18px;
+        padding: 14px 16px;
+        min-height: 106px;
+    }}
+    .sales-stat-label {{
+        font-size: 11px;
+        color: #5d7187;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+        font-weight: 700;
+    }}
+    .sales-stat-value {{
+        font-size: 28px;
+        line-height: 1;
+        color: {AZUL};
+        font-weight: 800;
+        margin-bottom: 8px;
+    }}
+    .sales-stat-caption {{
+        font-size: 12px;
+        color: #536273;
+        line-height: 1.45;
+    }}
+    .sales-card {{
+        background: white;
+        border: 1px solid rgba(0, 61, 122, 0.10);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 10px 24px rgba(0, 61, 122, 0.06);
+        height: 100%;
+    }}
+    .sales-card h4 {{
+        margin: 0 0 8px 0;
+        color: {AZUL};
+        font-size: 18px;
+    }}
+    .sales-card p {{
+        margin: 0;
+        color: #556474;
+        font-size: 13px;
+        line-height: 1.55;
+    }}
+    .sales-card strong {{
+        color: {AZUL};
+    }}
+    .sales-section-title {{
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #5a7088;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }}
+    .sales-callout {{
+        border-radius: 18px;
+        padding: 18px 20px;
+        margin: 10px 0 18px 0;
+        border: 1px solid rgba(0, 61, 122, 0.10);
+        background: linear-gradient(180deg, #f8fbfd 0%, #eef6fb 100%);
+    }}
+    .sales-callout h3 {{
+        margin: 0 0 8px 0;
+        color: {AZUL} !important;
+        font-size: 20px;
+    }}
+    .sales-callout p {{
+        margin: 0;
+        color: #546679;
+        line-height: 1.6;
+        font-size: 13px;
+    }}
+    .sales-checklist {{
+        margin: 10px 0 0 0;
+        padding-left: 18px;
+        color: #4f6173;
+        font-size: 13px;
+        line-height: 1.6;
+    }}
+    .sales-checklist li {{
+        margin-bottom: 4px;
+    }}
+    .insight-panel {{
+        border-radius: 18px;
+        padding: 18px 20px;
+        border: 1px solid rgba(0, 61, 122, 0.10);
+        background: white;
+        box-shadow: 0 10px 24px rgba(0, 61, 122, 0.05);
+        margin: 8px 0 16px 0;
+    }}
+    .insight-kicker {{
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #6a7e91;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }}
+    .insight-panel h4 {{
+        margin: 0 0 8px 0;
+        color: {AZUL};
+        font-size: 20px;
+    }}
+    .insight-panel p {{
+        margin: 0;
+        color: #556474;
+        font-size: 13px;
+        line-height: 1.6;
+    }}
+    .insight-list {{
+        margin: 12px 0 0 0;
+        padding-left: 18px;
+        color: #4f6173;
+        font-size: 13px;
+        line-height: 1.6;
+    }}
+    .insight-list li {{
+        margin-bottom: 4px;
+    }}
+    .summary-strip {{
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 8px 0 18px 0;
+    }}
+    .summary-box {{
+        border-radius: 16px;
+        padding: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #f5f9fc 100%);
+        border: 1px solid rgba(0, 61, 122, 0.08);
+    }}
+    .summary-box strong {{
+        display: block;
+        margin-bottom: 6px;
         color: {AZUL};
         font-size: 14px;
+    }}
+    .summary-box span {{
+        color: #5a6c7d;
+        font-size: 12px;
+        line-height: 1.5;
+    }}
+    @media (max-width: 980px) {{
+        .sales-grid {{
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }}
+        .summary-strip {{
+            grid-template-columns: 1fr;
+        }}
+    }}
+    @media (max-width: 640px) {{
+        .sales-grid {{
+            grid-template-columns: 1fr;
+        }}
+        .sales-hero {{
+            background: linear-gradient(180deg, {AZUL} 0%, #0b5a97 55%, #f7fbf8 55%, #f7fbf8 100%);
+        }}
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -377,6 +663,638 @@ def fmt_dinero(valor):
     if valor >= 1_000_000:
         return f"${valor:,.0f}"
     return f"${valor:,.0f}"
+
+MESES_PROYECCION = 30
+DIAS_MES = 30
+
+BANDAS_RETORNO = {
+    "Conservador": {"etiqueta": "Máximo", "payback_min": 27.0, "payback_max": 30.0, "equilibrio_mes": 8},
+    "Medio": {"etiqueta": "Intermedio", "payback_min": 20.0, "payback_max": 26.0, "equilibrio_mes": 7},
+    "Alto": {"etiqueta": "Óptimo", "payback_min": 18.0, "payback_max": 19.0, "equilibrio_mes": 6},
+}
+
+MINIMOS_MODELO = {
+    "🏪 Mini": {"flujo": 35, "flujo_vehicular": 50, "ticket": 75, "horas": 10},
+    "🩺 Consultorio": {"flujo": 45, "flujo_vehicular": 70, "ticket": 90, "horas": 10},
+    "🛒 Super": {"flujo": 60, "flujo_vehicular": 90, "ticket": 110, "horas": 10},
+}
+
+CONVERSION_MINIMA = {"Conservador": 3.5, "Medio": 4.0, "Alto": 5.0}
+CAPTACION_VEHICULAR_MINIMA = {"Conservador": 0.4, "Medio": 0.6, "Alto": 1.0}
+SURTEN_MINIMO = {"Conservador": 52.0, "Medio": 60.0, "Alto": 68.0}
+CRECIMIENTO_ESCENARIO = {"Conservador": 0.015, "Medio": 0.035, "Alto": 0.05}
+ARRANQUE_ESCENARIO = {"Conservador": 0.55, "Medio": 0.68, "Alto": 0.78}
+RAMPA_MAXIMA_ESCENARIO = {"Conservador": 5, "Medio": 4, "Alto": 3}
+ARRANQUE_OPCIONES_UI = {
+    "Prudente (55%)": 0.55,
+    "Comercial (68%)": 0.68,
+    "Fuerte (78%)": 0.78,
+}
+CRECIMIENTO_OPCIONES_UI = {
+    "Base (1.5%/mes)": 0.015,
+    "Comercial (3.5%/mes)": 0.035,
+    "Acelerado (5%/mes)": 0.05,
+}
+DEFAULT_ARRANQUE_ESCENARIO = {
+    "Conservador": "Prudente (55%)",
+    "Medio": "Comercial (68%)",
+    "Alto": "Fuerte (78%)",
+}
+ARRANQUE_OPCIONES_POR_ESCENARIO = {
+    "Conservador": ["Prudente (55%)", "Comercial (68%)", "Fuerte (78%)"],
+    "Medio": ["Comercial (68%)", "Fuerte (78%)"],
+    "Alto": ["Fuerte (78%)"],
+}
+DEFAULT_CRECIMIENTO_ESCENARIO = {
+    "Conservador": "Base (1.5%/mes)",
+    "Medio": "Comercial (3.5%/mes)",
+    "Alto": "Acelerado (5%/mes)",
+}
+CRECIMIENTO_OPCIONES_POR_ESCENARIO = {
+    "Conservador": ["Base (1.5%/mes)", "Comercial (3.5%/mes)", "Acelerado (5%/mes)"],
+    "Medio": ["Comercial (3.5%/mes)", "Acelerado (5%/mes)"],
+    "Alto": ["Acelerado (5%/mes)"],
+}
+RAMPA_OPCIONES_POR_ESCENARIO = {
+    "Conservador": [3, 4, 5],
+    "Medio": [3, 4],
+    "Alto": [3],
+}
+
+GASTOS_FIJOS_AUTOMATICOS = {
+    "🏪 Mini": {
+        "Cumplimiento sanitario (RP / RPBI)": 500,
+    },
+    "🩺 Consultorio": {
+        "Cumplimiento sanitario (RP / RPBI)": 500,
+    },
+    "🛒 Super": {
+        "Cumplimiento sanitario (RP / RPBI)": 500,
+    },
+}
+
+GASTOS_FIJOS_EDITABLES = {
+    "🏪 Mini": {
+        "Renta": 8000,
+        "Nómina": 6000,
+        "Luz": 1500,
+        "Internet/Tel": 500,
+        "Contador": 1000,
+        "Seguros": 500,
+        "Limpieza": 500,
+    },
+    "🩺 Consultorio": {
+        "Renta": 12000,
+        "Nómina farmacia": 8000,
+        "Nómina médico": 10000,
+        "Luz": 2500,
+        "Internet/Tel": 800,
+        "Contador": 1500,
+        "Seguros": 1200,
+        "Limpieza": 800,
+        "Insumos médicos": 1200,
+    },
+    "🛒 Super": {
+        "Renta": 18000,
+        "Nómina farmacia": 10000,
+        "Nómina médico": 10000,
+        "Nómina abarrotes": 5000,
+        "Luz": 4000,
+        "Internet/Tel": 1000,
+        "Contador": 2000,
+        "Seguros": 1500,
+        "Limpieza": 1200,
+        "Insumos médicos": 1300,
+    },
+}
+
+MODELO_COMERCIAL = {
+    "🏪 Mini": {
+        "headline": "Entrada ágil al negocio farmacéutico",
+        "pitch": "Un formato ligero para abrir rápido, operar simple y capitalizar la demanda diaria de medicamentos esenciales.",
+        "cards": [
+            ("Inversión accesible", "Permite presentar una oportunidad de entrada más ligera y con recuperación controlada."),
+            ("Operación simple", "Menos complejidad operativa facilita supervisión, capacitación y apertura más veloz."),
+            ("Mercado amplio", "Se apoya en categorías de alta rotación y consumo recurrente en prácticamente cualquier zona."),
+        ],
+        "cierre": "Es una buena base cuando se busca una unidad rentable, fácil de controlar y clara de ejecutar.",
+    },
+    "🩺 Consultorio": {
+        "headline": "Farmacia con ancla médica y mayor ticket",
+        "pitch": "Combina dispensación con consulta para capturar más recetas, elevar frecuencia de compra y fortalecer fidelización.",
+        "cards": [
+            ("Doble ingreso", "La mezcla farmacia + consulta amplía las fuentes de ingreso y eleva el ticket blended."),
+            ("Receta inmediata", "La cercanía entre consulta y surtido impulsa conversión y recompra de forma natural."),
+            ("Mayor fidelidad", "La relación médico-paciente sostiene recurrencia y vuelve más estable la sucursal."),
+        ],
+        "cierre": "Funciona bien cuando se busca diferenciación y una historia clara de tráfico calificado.",
+    },
+    "🛒 Super": {
+        "headline": "Formato integral con tráfico y venta cruzada",
+        "pitch": "Suma farmacia, consultorio y conveniencia para maximizar visitas, diversificar ingresos y elevar permanencia en tienda.",
+        "cards": [
+            ("Mayor tráfico", "La conveniencia agrega razones de visita y sostiene flujo más frecuente durante el día."),
+            ("Venta cruzada", "Cada visita puede convertirse en varias líneas de ingreso dentro del mismo ticket."),
+            ("Diversificación", "Reduce dependencia de una sola categoría y fortalece la estabilidad operativa del negocio."),
+        ],
+        "cierre": "Funciona mejor cuando se quiere una unidad robusta, visible y con una ruta de crecimiento superior.",
+    },
+}
+
+ESCENARIO_COMERCIAL = {
+    "Conservador": "Lectura prudente para validar que la ubicación resiste incluso con un arranque más frío.",
+    "Medio": "Escenario base porque combina realismo operativo y una recuperación defendible.",
+    "Alto": "Muestra el techo comercial alcanzable cuando la ejecución, la visibilidad y la ubicación juegan a favor.",
+}
+
+
+def redondear_miles(valor):
+    return int(round(valor / 1000.0) * 1000)
+
+
+def limitar(valor, minimo=None, maximo=None):
+    if minimo is not None:
+        valor = max(valor, minimo)
+    if maximo is not None:
+        valor = min(valor, maximo)
+    return valor
+
+
+def obtener_gastos_fijos_modelo(modelo):
+    return {**GASTOS_FIJOS_EDITABLES[modelo], **GASTOS_FIJOS_AUTOMATICOS[modelo]}
+
+
+def construir_factores_mensuales(arranque_inicial, meses_rampa, crec, meses_proyeccion=MESES_PROYECCION):
+    rampa = np.linspace(arranque_inicial, 1.0, meses_rampa)
+    factores = []
+    for t in range(meses_proyeccion):
+        if t < meses_rampa:
+            factor = rampa[t]
+        else:
+            factor = ((1 + crec) ** (t - meses_rampa + 1))
+        factores.append(factor)
+    return factores
+
+
+def clasificar_retorno(meses_recuperacion):
+    if not np.isfinite(meses_recuperacion):
+        return "Fuera de estándar"
+    if meses_recuperacion <= BANDAS_RETORNO["Alto"]["payback_max"]:
+        return BANDAS_RETORNO["Alto"]["etiqueta"]
+    if meses_recuperacion <= BANDAS_RETORNO["Medio"]["payback_max"]:
+        return BANDAS_RETORNO["Medio"]["etiqueta"]
+    if meses_recuperacion <= BANDAS_RETORNO["Conservador"]["payback_max"]:
+        return BANDAS_RETORNO["Conservador"]["etiqueta"]
+    return "Fuera de estándar"
+
+
+def construir_retorno_visual(meses_recuperacion, escenario, cumple_estandar):
+    meta = BANDAS_RETORNO[escenario]
+    banda_corta = f"{meta['payback_min']:.0f}-{meta['payback_max']:.0f}m"
+    banda_larga = f"{meta['payback_min']:.0f}-{meta['payback_max']:.0f} meses"
+    if cumple_estandar and np.isfinite(meses_recuperacion):
+        retorno_real = f"{meses_recuperacion:.1f} meses"
+        return {
+            "hero": f"{meses_recuperacion:.1f}m",
+            "metrica": retorno_real,
+            "resumen": f"{retorno_real}, dentro de la banda objetivo {banda_larga}.",
+            "caption": f"Recuperación ya dentro de la banda comercial {banda_larga}.",
+        }
+
+    return {
+        "hero": banda_corta,
+        "metrica": banda_larga,
+        "resumen": f"Objetivo comercial {banda_larga}. Hoy la corrida requiere ajuste para volver a ese rango.",
+        "caption": f"Banda comercial del escenario. Hoy la corrida requiere ajuste para volver a {banda_larga}.",
+    }
+
+
+def _render_sales_cards(cards, eyebrow="Argumento Comercial"):
+    columnas = st.columns(len(cards))
+    for col, (titulo, descripcion) in zip(columnas, cards):
+        with col:
+            st.markdown(
+                f"""
+                <div class="sales-card">
+                    <div class="sales-section-title">{escape(str(eyebrow))}</div>
+                    <h4>{titulo}</h4>
+                    <p>{descripcion}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_insight_panel(kicker, titulo, descripcion, bullets=None):
+    bullets_html = ""
+    if bullets:
+        bullets_html = '<ul class="insight-list">' + "".join(f"<li>{item}</li>" for item in bullets) + "</ul>"
+    st.markdown(
+        f"""
+        <div class="insight-panel">
+            <div class="insight-kicker">{kicker}</div>
+            <h4>{titulo}</h4>
+            <p>{descripcion}</p>
+            {bullets_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_summary_strip(items):
+    if not items:
+        return
+
+    cols = st.columns(len(items))
+    for col, (titulo, descripcion) in zip(cols, items):
+        with col:
+            st.markdown(
+                f"""
+                <div class="summary-box">
+                    <strong>{escape(str(titulo))}</strong>
+                    <span>{escape(str(descripcion))}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_horizontal_bar_chart(data, titulo, color):
+    etiquetas = list(data.keys())
+    valores = list(data.values())
+    if not valores:
+        return
+
+    fig, ax = plt.subplots(figsize=(6.2, max(2.8, len(etiquetas) * 0.55)))
+    posiciones = np.arange(len(etiquetas))
+    ax.barh(posiciones, valores, color=color, alpha=0.88)
+    ax.set_yticks(posiciones, etiquetas)
+    ax.invert_yaxis()
+    ax.set_title(titulo, loc="left", fontsize=13, fontweight="bold", color=AZUL)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    ax.grid(axis="x", linestyle="--", alpha=0.18)
+    ax.tick_params(axis="y", labelsize=10)
+    ax.tick_params(axis="x", labelsize=9)
+    for idx, valor in enumerate(valores):
+        ax.text(valor * 1.01 if valor > 0 else 0, idx, fmt_dinero(valor), va="center", fontsize=9, color=AZUL)
+    fig.tight_layout()
+    st.pyplot(fig, use_container_width=True)
+    plt.close(fig)
+
+
+def calcular_resultados_proyectados(
+    *,
+    modelo,
+    escenario,
+    inversion_base,
+    flujo,
+    flujo_vehicular,
+    conversion,
+    captacion_vehicular,
+    horas,
+    dias,
+    ticket,
+    consultas,
+    surten,
+    ticket_receta,
+    ingreso_consulta,
+    abarrotes_pct,
+    cogs,
+    cogs_receta,
+    cogs_abarrotes,
+    gastos_fijos,
+    gastos_var,
+    arranque_inicial,
+    meses_rampa,
+    crec,
+    gasto_lanzamiento,
+    meses_proyeccion=MESES_PROYECCION,
+):
+    meta = BANDAS_RETORNO[escenario]
+    colchon_operativo = redondear_miles(max(inversion_base * 0.08, gastos_fijos, gasto_lanzamiento * 2))
+    inversion_total = inversion_base + colchon_operativo
+
+    flujo_peatonal_mes = flujo * horas * dias
+    flujo_vehicular_mes = flujo_vehicular * horas * dias
+    clientes_peatonales_mes = int(flujo_peatonal_mes * conversion)
+    clientes_vehiculares_mes = int(flujo_vehicular_mes * captacion_vehicular)
+    clientes_mes = max(clientes_peatonales_mes + clientes_vehiculares_mes, 0)
+
+    ventas_farmacia_base = clientes_mes * ticket
+    consultas_mes = consultas * dias if consultas else 0
+    ventas_recetas_base = consultas_mes * surten * ticket_receta
+    ingresos_consulta_base = consultas_mes * ingreso_consulta
+    ventas_abarrotes_base = ventas_farmacia_base * abarrotes_pct if abarrotes_pct else 0
+    ventas_totales_base = max(
+        ventas_farmacia_base + ventas_recetas_base + ventas_abarrotes_base + ingresos_consulta_base,
+        0,
+    )
+
+    cogs_farmacia_base = ventas_farmacia_base * cogs
+    cogs_recetas_base = ventas_recetas_base * cogs_receta
+    cogs_abarrotes_base = ventas_abarrotes_base * cogs_abarrotes
+    cogs_total_base = cogs_farmacia_base + cogs_recetas_base + cogs_abarrotes_base
+    gastos_variables_base = ventas_totales_base * gastos_var
+    contribucion = (
+        (ventas_totales_base - cogs_total_base - gastos_variables_base) / ventas_totales_base
+        if ventas_totales_base > 0
+        else 0
+    )
+
+    clientes_totales_base = clientes_mes + (consultas_mes if consultas_mes else 0)
+    ticket_prom = ventas_totales_base / clientes_totales_base if clientes_totales_base > 0 else 0
+    ventas_be = gastos_fijos / contribucion if contribucion > 0 else ventas_totales_base
+    clientes_be = ventas_be / ticket_prom if contribucion > 0 and ticket_prom > 0 else clientes_totales_base
+    porcentaje_equilibrio = (ventas_be / ventas_totales_base * 100) if ventas_totales_base > 0 else 100
+    porcentaje_equilibrio = limitar(porcentaje_equilibrio, 0, 100)
+    margen_seguridad = max(100 - porcentaje_equilibrio, 0)
+
+    factores = construir_factores_mensuales(arranque_inicial, meses_rampa, crec, meses_proyeccion)
+
+    def simular_escala(scale, incluir_detalle):
+        proyeccion = []
+        proyeccion_num = []
+        utilidades_raw = []
+        utilidades_display = []
+        recuperado_acumulado = 0.0
+        meses_recuperacion_real = float("inf")
+        mes_equilibrio_real = float("inf")
+
+        ventas_farmacia = ventas_farmacia_base * scale
+        ventas_recetas = ventas_recetas_base * scale
+        ventas_abarrotes = ventas_abarrotes_base * scale
+        ingresos_consulta = ingresos_consulta_base * scale
+        ventas_totales = ventas_farmacia + ventas_recetas + ventas_abarrotes + ingresos_consulta
+        cogs_total = (
+            (ventas_farmacia * cogs)
+            + (ventas_recetas * cogs_receta)
+            + (ventas_abarrotes * cogs_abarrotes)
+        )
+        utilidad_bruta = ventas_totales - cogs_total
+        gastos_variables = ventas_totales * gastos_var
+        utilidad_neta_raw = utilidad_bruta - gastos_fijos - gastos_variables
+        utilidad_neta_display = max(utilidad_neta_raw, 0)
+        margen_neto = utilidad_neta_display / ventas_totales if ventas_totales > 0 else 0
+        clientes_mes_escala = clientes_mes * scale
+        ticket_prom_escala = ventas_totales / (clientes_totales_base * scale) if clientes_totales_base > 0 else 0
+
+        for t, factor in enumerate(factores):
+            vf = ventas_farmacia * factor
+            vr = ventas_recetas * factor
+            va = ventas_abarrotes * factor
+            ic = ingresos_consulta * factor
+            vt = vf + vr + va + ic
+
+            ct = (vf * cogs) + (vr * cogs_receta) + (va * cogs_abarrotes)
+            ub = vt - ct
+            gv = vt * gastos_var
+            gasto_extra_t = gasto_lanzamiento if t < 3 else 0
+            un_raw = ub - gastos_fijos - gv - gasto_extra_t
+            un_display = max(un_raw, 0)
+            mn = un_display / vt if vt > 0 else 0
+
+            utilidades_raw.append(un_raw)
+            utilidades_display.append(un_display)
+
+            recuperado_previo = recuperado_acumulado
+            recuperado_acumulado += un_display
+            saldo_por_recuperar = max(inversion_total - recuperado_acumulado, 0)
+            roi_acumulado = recuperado_acumulado / inversion_total if inversion_total > 0 else 0
+
+            if mes_equilibrio_real == float("inf") and un_raw >= 0:
+                mes_equilibrio_real = t + 1
+            if meses_recuperacion_real == float("inf") and recuperado_acumulado >= inversion_total and un_display > 0:
+                faltante = max(inversion_total - recuperado_previo, 0)
+                meses_recuperacion_real = t + (faltante / un_display)
+
+            if incluir_detalle:
+                proyeccion.append({
+                    "Mes": t + 1,
+                    "Ventas": f"${round(vt):,}",
+                    "COGS": f"${round(ct):,}",
+                    "Util. Bruta": f"${round(max(ub, 0)):,.0f}",
+                    "Gastos Fijos": f"${round(gastos_fijos):,}",
+                    "Gastos Var.": f"${round(gv):,}",
+                    "Apertura": f"${round(gasto_extra_t):,}",
+                    "Util. Neta": f"${round(un_display):,}",
+                    "Recuperado": f"${round(recuperado_acumulado):,}",
+                    "Saldo por recuperar": f"${round(saldo_por_recuperar):,}",
+                    "ROI Acum.": f"{roi_acumulado * 100:.1f}%",
+                    "Margen %": f"{round(mn * 100, 1)}%",
+                })
+                proyeccion_num.append({
+                    "Mes": t + 1,
+                    "Ventas": round(vt),
+                    "Util. Neta": round(un_display),
+                    "Recuperado": round(recuperado_acumulado),
+                    "Saldo por recuperar": round(saldo_por_recuperar),
+                    "ROI Acum.": round(roi_acumulado * 100, 1),
+                    "Margen %": round(mn * 100, 1),
+                })
+
+        util_anual_raw = sum(utilidades_raw[:12])
+        util_anual_display = sum(utilidades_display[:12])
+        ventas_anual = sum(
+            (
+                (ventas_farmacia * factor)
+                + (ventas_recetas * factor)
+                + (ventas_abarrotes * factor)
+                + (ingresos_consulta * factor)
+            )
+            for factor in factores[:12]
+        )
+        roi_anual = (max(util_anual_raw, 0) / inversion_total) if inversion_total > 0 else 0
+        utilidad_run_rate = max(utilidades_display[-1], utilidad_neta_display, 0)
+        if meses_recuperacion_real == float("inf") and utilidad_run_rate > 0:
+            remanente = max(inversion_total - recuperado_acumulado, 0)
+            if remanente > 0:
+                meses_recuperacion_real = meses_proyeccion + (remanente / utilidad_run_rate)
+
+        return {
+            "ventas_farmacia": ventas_farmacia,
+            "ventas_recetas": ventas_recetas,
+            "ingresos_consulta": ingresos_consulta,
+            "ventas_abarrotes": ventas_abarrotes,
+            "ventas_totales": ventas_totales,
+            "cogs_total": cogs_total,
+            "gastos_variables": gastos_variables,
+            "utilidad_bruta": max(utilidad_bruta, 0),
+            "utilidad_neta_raw": utilidad_neta_raw,
+            "utilidad_neta_display": utilidad_neta_display,
+            "margen_neto": margen_neto,
+            "clientes_mes": clientes_mes_escala,
+            "ticket_prom": ticket_prom_escala,
+            "mes_equilibrio_real": mes_equilibrio_real,
+            "meses_recuperacion_real": meses_recuperacion_real,
+            "util_anual_raw": util_anual_raw,
+            "util_anual_display": util_anual_display,
+            "ventas_anual": ventas_anual,
+            "roi_anual": roi_anual,
+            "ventas_mes_1": round(
+                ventas_farmacia * factores[0]
+                + ventas_recetas * factores[0]
+                + ventas_abarrotes * factores[0]
+                + ingresos_consulta * factores[0]
+            ),
+            "utilidad_mes_1": round(utilidades_display[0]) if utilidades_display else 0,
+            "proyeccion": proyeccion,
+            "proyeccion_num": proyeccion_num,
+            "recuperado_mes_30": recuperado_acumulado,
+        }
+
+    def cumple_estandar(simulacion):
+        return (
+            simulacion["utilidad_neta_raw"] > 0
+            and np.isfinite(simulacion["meses_recuperacion_real"])
+            and simulacion["meses_recuperacion_real"] <= meta["payback_max"]
+            and np.isfinite(simulacion["mes_equilibrio_real"])
+            and simulacion["mes_equilibrio_real"] <= meta["equilibrio_mes"]
+        )
+
+    resultado_actual = simular_escala(1.0, incluir_detalle=True)
+    cumple_estandar_comercial = cumple_estandar(resultado_actual)
+    escala_minima_requerida = 1.0 if cumple_estandar_comercial else None
+    resultado_objetivo = resultado_actual if cumple_estandar_comercial else None
+
+    if not cumple_estandar_comercial:
+        escala_alta = 1.0
+        resultado_alto = resultado_actual
+        while escala_alta < 8.0:
+            escala_alta *= 1.15
+            resultado_alto = simular_escala(escala_alta, incluir_detalle=False)
+            if cumple_estandar(resultado_alto):
+                break
+
+        if cumple_estandar(resultado_alto):
+            escala_baja = 1.0
+            for _ in range(30):
+                escala_media = (escala_baja + escala_alta) / 2
+                resultado_medio = simular_escala(escala_media, incluir_detalle=False)
+                if cumple_estandar(resultado_medio):
+                    escala_alta = escala_media
+                    resultado_alto = resultado_medio
+                else:
+                    escala_baja = escala_media
+            escala_minima_requerida = escala_alta
+            resultado_objetivo = simular_escala(escala_minima_requerida, incluir_detalle=False)
+
+    ventas_estables_minimas = resultado_objetivo["ventas_totales"] if resultado_objetivo else None
+    utilidad_estable_minima = resultado_objetivo["utilidad_neta_display"] if resultado_objetivo else None
+    tickets_mes_minimos = int(np.ceil(resultado_objetivo["clientes_mes"])) if resultado_objetivo else None
+    ticket_blended_minimo = (
+        ventas_estables_minimas / tickets_mes_minimos
+        if resultado_objetivo and tickets_mes_minimos
+        else None
+    )
+    faltante_ventas = max((ventas_estables_minimas or 0) - resultado_actual["ventas_totales"], 0)
+    faltante_tickets = max((tickets_mes_minimos or 0) - int(np.ceil(resultado_actual["clientes_mes"])), 0)
+    mejora_utilidad_requerida = max((utilidad_estable_minima or 0) - resultado_actual["utilidad_neta_display"], 0)
+    gasto_fijo_meta = (
+        max(gastos_fijos - mejora_utilidad_requerida, 0)
+        if resultado_objetivo
+        else None
+    )
+    reduccion_gastos_fijos_requerida = (
+        max(gastos_fijos - gasto_fijo_meta, 0)
+        if gasto_fijo_meta is not None
+        else None
+    )
+    incremento_ticket_blended = max((ticket_blended_minimo or 0) - resultado_actual["ticket_prom"], 0)
+    mes_objetivo_indice = min(int(np.ceil(meta["payback_max"])), meses_proyeccion)
+    recuperado_meta_actual = (
+        resultado_actual["proyeccion_num"][mes_objetivo_indice - 1]["Recuperado"]
+        if resultado_actual["proyeccion_num"] and mes_objetivo_indice > 0
+        else 0
+    )
+    inversion_maxima_presentable = min(inversion_total, recuperado_meta_actual) if recuperado_meta_actual > 0 else 0
+    recorte_inversion_requerido = max(inversion_total - inversion_maxima_presentable, 0)
+
+    meses_recuperacion_real = resultado_actual["meses_recuperacion_real"]
+    meses_recuperacion_fmt = (
+        f"{meses_recuperacion_real:.1f} meses"
+        if np.isfinite(meses_recuperacion_real)
+        else "Fuera de estándar"
+    )
+    anios_recuperacion_fmt = (
+        f"{meses_recuperacion_real / 12:.1f} años"
+        if np.isfinite(meses_recuperacion_real)
+        else "Fuera de estándar"
+    )
+
+    return {
+        "colchon_operativo": colchon_operativo,
+        "inversion_total": inversion_total,
+        "flujo_peatonal_mes": flujo_peatonal_mes,
+        "flujo_vehicular_mes": flujo_vehicular_mes,
+        "clientes_peatonales_mes": clientes_peatonales_mes,
+        "clientes_vehiculares_mes": clientes_vehiculares_mes,
+        "clientes_mes": resultado_actual["clientes_mes"],
+        "ventas_farmacia": resultado_actual["ventas_farmacia"],
+        "consultas_mes": consultas_mes,
+        "ventas_recetas": resultado_actual["ventas_recetas"],
+        "ingresos_consulta": resultado_actual["ingresos_consulta"],
+        "ventas_abarrotes": resultado_actual["ventas_abarrotes"],
+        "ventas_totales": resultado_actual["ventas_totales"],
+        "cogs_total": resultado_actual["cogs_total"],
+        "utilidad_bruta": resultado_actual["utilidad_bruta"],
+        "gastos_variables": resultado_actual["gastos_variables"],
+        "utilidad_neta": resultado_actual["utilidad_neta_display"],
+        "utilidad_neta_raw": resultado_actual["utilidad_neta_raw"],
+        "margen_neto": resultado_actual["margen_neto"],
+        "ticket_prom": resultado_actual["ticket_prom"],
+        "contribucion": contribucion,
+        "ventas_be": ventas_be,
+        "clientes_be": clientes_be,
+        "porcentaje_equilibrio": porcentaje_equilibrio,
+        "margen_seguridad": margen_seguridad,
+        "mes_equilibrio_objetivo": meta["equilibrio_mes"],
+        "mes_equilibrio_real": resultado_actual["mes_equilibrio_real"],
+        "proyeccion": resultado_actual["proyeccion"],
+        "proyeccion_num": resultado_actual["proyeccion_num"],
+        "df": pd.DataFrame(resultado_actual["proyeccion"]),
+        "df_num": pd.DataFrame(resultado_actual["proyeccion_num"]),
+        "util_anual": max(resultado_actual["util_anual_display"], 0),
+        "util_anual_raw": resultado_actual["util_anual_raw"],
+        "ventas_anual": resultado_actual["ventas_anual"],
+        "roi_anual": resultado_actual["roi_anual"],
+        "meses_recuperacion": meses_recuperacion_real,
+        "meses_recuperacion_real": meses_recuperacion_real,
+        "meses_recuperacion_fmt": meses_recuperacion_fmt,
+        "anios_recuperacion_fmt": anios_recuperacion_fmt,
+        "ventas_mes_1": resultado_actual["ventas_mes_1"],
+        "utilidad_mes_1": resultado_actual["utilidad_mes_1"],
+        "ventas_mes_estable": resultado_actual["ventas_totales"],
+        "utilidad_mes_estable": resultado_actual["utilidad_neta_display"],
+        "cumple_estandar_comercial": cumple_estandar_comercial,
+        "clasificacion_retorno": clasificar_retorno(meses_recuperacion_real),
+        "meta_comercial": {
+            "alcanzable": resultado_objetivo is not None,
+            "escala_minima_requerida": escala_minima_requerida,
+            "ventas_estables_minimas": ventas_estables_minimas,
+            "utilidad_estable_minima": utilidad_estable_minima,
+            "tickets_mes_minimos": tickets_mes_minimos,
+            "ticket_blended_minimo": ticket_blended_minimo,
+            "incremento_ticket_blended": incremento_ticket_blended,
+            "faltante_ventas": faltante_ventas,
+            "faltante_tickets": faltante_tickets,
+            "mejora_utilidad_requerida": mejora_utilidad_requerida,
+            "gasto_fijo_meta": gasto_fijo_meta,
+            "reduccion_gastos_fijos_requerida": reduccion_gastos_fijos_requerida,
+            "recuperado_meta_actual": recuperado_meta_actual,
+            "inversion_maxima_presentable": inversion_maxima_presentable,
+            "recorte_inversion_requerido": recorte_inversion_requerido,
+            "retorno_maximo_presentable": meta["payback_max"],
+            "equilibrio_maximo_presentable": meta["equilibrio_mes"],
+            "retorno_objetivo": (
+                resultado_objetivo["meses_recuperacion_real"]
+                if resultado_objetivo and np.isfinite(resultado_objetivo["meses_recuperacion_real"])
+                else None
+            ),
+        },
+    }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PRESETS POR MODELO DE FRANQUICIA Y ESCENARIO
@@ -393,28 +1311,28 @@ MODELOS = {
 
 PRESETS = {
     "🏪 Mini": {
-        "Conservador": {"flujo": 30, "conversion": 0.08, "ticket": 75, "cogs": 0.72, "gastos_fijos": 22000, "gastos_var": 0.03, "crec": 0.015},
-        "Medio":       {"flujo": 60, "conversion": 0.12, "ticket": 95, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.05, "crec": 0.03},
-        "Alto":        {"flujo": 100, "conversion": 0.16, "ticket": 120, "cogs": 0.65, "gastos_fijos": 35000, "gastos_var": 0.07, "crec": 0.045},
+        "Conservador": {"flujo": 75, "conversion": 0.035, "ticket": 110, "cogs": 0.68, "gastos_fijos": 22000, "gastos_var": 0.03, "crec": 0.03},
+        "Medio":       {"flujo": 65, "conversion": 0.04, "ticket": 100, "cogs": 0.68, "gastos_fijos": 28000, "gastos_var": 0.03, "crec": 0.035},
+        "Alto":        {"flujo": 60, "conversion": 0.05, "ticket": 95, "cogs": 0.68, "gastos_fijos": 35000, "gastos_var": 0.03, "crec": 0.05},
     },
     "🩺 Consultorio": {
-        "Conservador": {"flujo": 45, "conversion": 0.09, "ticket": 85, "cogs": 0.70, "gastos_fijos": 35000, "gastos_var": 0.04, "crec": 0.02,
-                        "consultas": 8, "surten": 0.60, "ticket_receta": 120, "ingreso_consulta": 40, "cogs_receta": 0.62},
-        "Medio":       {"flujo": 80, "conversion": 0.13, "ticket": 110, "cogs": 0.67, "gastos_fijos": 45000, "gastos_var": 0.06, "crec": 0.035,
-                        "consultas": 15, "surten": 0.72, "ticket_receta": 180, "ingreso_consulta": 60, "cogs_receta": 0.58},
-        "Alto":        {"flujo": 140, "conversion": 0.17, "ticket": 150, "cogs": 0.63, "gastos_fijos": 58000, "gastos_var": 0.08, "crec": 0.05,
-                        "consultas": 25, "surten": 0.85, "ticket_receta": 250, "ingreso_consulta": 85, "cogs_receta": 0.55},
+        "Conservador": {"flujo": 45, "conversion": 0.035, "ticket": 95, "cogs": 0.69, "gastos_fijos": 35000, "gastos_var": 0.03, "crec": 0.03,
+                        "consultas": 12, "surten": 0.52, "ticket_receta": 180, "ingreso_consulta": 45, "cogs_receta": 0.61},
+        "Medio":       {"flujo": 50, "conversion": 0.04, "ticket": 95, "cogs": 0.68, "gastos_fijos": 45000, "gastos_var": 0.03, "crec": 0.035,
+                        "consultas": 10, "surten": 0.60, "ticket_receta": 160, "ingreso_consulta": 50, "cogs_receta": 0.60},
+        "Alto":        {"flujo": 50, "conversion": 0.05, "ticket": 100, "cogs": 0.68, "gastos_fijos": 58000, "gastos_var": 0.03, "crec": 0.05,
+                        "consultas": 10, "surten": 0.68, "ticket_receta": 150, "ingreso_consulta": 45, "cogs_receta": 0.58},
     },
     "🛒 Super": {
-        "Conservador": {"flujo": 60, "conversion": 0.10, "ticket": 90, "cogs": 0.74, "gastos_fijos": 48000, "gastos_var": 0.04, "crec": 0.025,
-                        "consultas": 10, "surten": 0.65, "ticket_receta": 140, "ingreso_consulta": 45, "cogs_receta": 0.62,
-                        "abarrotes_pct": 0.15, "cogs_abarrotes": 0.90},
-        "Medio":       {"flujo": 110, "conversion": 0.14, "ticket": 120, "cogs": 0.69, "gastos_fijos": 62000, "gastos_var": 0.06, "crec": 0.04,
-                        "consultas": 18, "surten": 0.75, "ticket_receta": 200, "ingreso_consulta": 70, "cogs_receta": 0.58,
-                        "abarrotes_pct": 0.22, "cogs_abarrotes": 0.88},
-        "Alto":        {"flujo": 180, "conversion": 0.18, "ticket": 165, "cogs": 0.65, "gastos_fijos": 78000, "gastos_var": 0.08, "crec": 0.055,
-                        "consultas": 30, "surten": 0.88, "ticket_receta": 280, "ingreso_consulta": 100, "cogs_receta": 0.55,
-                        "abarrotes_pct": 0.32, "cogs_abarrotes": 0.85},
+        "Conservador": {"flujo": 60, "conversion": 0.035, "ticket": 110, "cogs": 0.71, "gastos_fijos": 48000, "gastos_var": 0.03, "crec": 0.03,
+                        "consultas": 14, "surten": 0.52, "ticket_receta": 200, "ingreso_consulta": 50, "cogs_receta": 0.60,
+                        "abarrotes_pct": 0.18, "cogs_abarrotes": 0.90},
+        "Medio":       {"flujo": 60, "conversion": 0.04, "ticket": 110, "cogs": 0.69, "gastos_fijos": 62000, "gastos_var": 0.03, "crec": 0.035,
+                        "consultas": 12, "surten": 0.60, "ticket_receta": 180, "ingreso_consulta": 55, "cogs_receta": 0.60,
+                        "abarrotes_pct": 0.18, "cogs_abarrotes": 0.89},
+        "Alto":        {"flujo": 60, "conversion": 0.05, "ticket": 110, "cogs": 0.67, "gastos_fijos": 78000, "gastos_var": 0.03, "crec": 0.05,
+                        "consultas": 8, "surten": 0.68, "ticket_receta": 200, "ingreso_consulta": 60, "cogs_receta": 0.57,
+                        "abarrotes_pct": 0.18, "cogs_abarrotes": 0.88},
     },
 }
 
@@ -438,6 +1356,29 @@ modelo = st.sidebar.selectbox("Modelo de Franquicia", list(MODELOS.keys()))
 escenario = st.sidebar.selectbox("Escenario", ["Conservador", "Medio", "Alto"], index=1)
 p = PRESETS[modelo][escenario]
 m = MODELOS[modelo]
+banda_sidebar = BANDAS_RETORNO[escenario]
+st.sidebar.caption(
+    f"Meta comercial: retorno {banda_sidebar['payback_min']:.0f}-{banda_sidebar['payback_max']:.0f} meses "
+    f"y equilibrio en mes {banda_sidebar['equilibrio_mes']}."
+)
+st.sidebar.markdown(
+    f"""
+    <div class="sidebar-scenario-box">
+        <div class="sidebar-scenario-title">Parámetros Iniciales del Escenario</div>
+        <div class="sidebar-scenario-grid">
+            <div class="sidebar-scenario-kpi">
+                <span>Retorno Meta</span>
+                <strong>{banda_sidebar['payback_min']:.0f}-{banda_sidebar['payback_max']:.0f} meses</strong>
+            </div>
+            <div class="sidebar-scenario-kpi">
+                <span>Punto de Equilibrio</span>
+                <strong>Mes {banda_sidebar['equilibrio_mes']}</strong>
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Explicación de escenarios
 with st.sidebar.expander("📚 ¿Qué significa cada escenario?", expanded=False):
@@ -509,50 +1450,72 @@ inversion = st.session_state.inversion_personalizada
 cogs = p["cogs"]
 cogs_receta = p.get("cogs_receta", cogs)
 cogs_abarrotes = p.get("cogs_abarrotes", 0.88)
-conversion_default = {"Conservador": 3.0, "Medio": 3.0, "Alto": 3.0}
-captacion_vehicular_default = {"Conservador": 0.3, "Medio": 0.5, "Alto": 0.8}
-gastos_variables_default = {"🏪 Mini": 3.0, "🩺 Consultorio": 3.0, "🛒 Super": 3.0}
-surten_default = {"Conservador": 50.0, "Medio": 50.0, "Alto": 50.0}
+minimos_modelo = MINIMOS_MODELO[modelo]
+combo_parametros_iniciales = f"{modelo}|{escenario}"
+
+if st.session_state.get("combo_parametros_iniciales") != combo_parametros_iniciales:
+    st.session_state["combo_parametros_iniciales"] = combo_parametros_iniciales
+    st.session_state["flujo_sidebar"] = max(int(p["flujo"]), minimos_modelo["flujo"])
+    st.session_state["flujo_vehicular_sidebar"] = max(minimos_modelo["flujo_vehicular"], int(st.session_state["flujo_sidebar"] * 1.5))
+    st.session_state["conversion_sidebar"] = max(float(p.get("conversion", CONVERSION_MINIMA[escenario] / 100) * 100), float(CONVERSION_MINIMA[escenario]))
+    st.session_state["captacion_vehicular_sidebar"] = float(CAPTACION_VEHICULAR_MINIMA[escenario])
+    st.session_state["horas_sidebar"] = max(int(p.get("horas", 12)), minimos_modelo["horas"])
+    st.session_state["ticket_sidebar"] = min(max(int(p["ticket"]), minimos_modelo["ticket"]), 220)
+    st.session_state["gasto_variable_simple"] = min(max(float(p.get("gastos_var", 0.03) * 100), 0.0), 5.0)
+    st.session_state["arranque_sidebar"] = DEFAULT_ARRANQUE_ESCENARIO[escenario]
+    st.session_state["meses_rampa_sidebar"] = RAMPA_MAXIMA_ESCENARIO[escenario]
+    st.session_state["crecimiento_sidebar"] = DEFAULT_CRECIMIENTO_ESCENARIO[escenario]
+    st.session_state["gasto_lanzamiento_sidebar"] = {"🏪 Mini": 12000, "🩺 Consultorio": 18000, "🛒 Super": 25000}[modelo]
+    if m["consultorio"]:
+        st.session_state["consultas_sidebar"] = int(max(p.get("consultas", 0), 0))
+        st.session_state["ingreso_consulta_sidebar"] = int(max(p.get("ingreso_consulta", 40), 0))
+        st.session_state["ticket_receta_sidebar"] = int(max(p.get("ticket_receta", 120), 80))
+        st.session_state["surten_sidebar"] = max(float(p.get("surten", SURTEN_MINIMO[escenario] / 100) * 100), float(SURTEN_MINIMO[escenario]))
 
 with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
-    st.caption("Usa una hora típica y define tu horario real de operación.")
+    st.caption("La corrida aplica pisos comerciales para evitar escenarios inferiores a una operación rentable.")
     flujo = st.number_input(
         "Peatones por hora",
-        min_value=20,
-        value=max(p["flujo"], 20),
+        min_value=minimos_modelo["flujo"],
+        value=st.session_state.get("flujo_sidebar", max(p["flujo"], minimos_modelo["flujo"])),
         step=5,
+        key="flujo_sidebar",
         help="Personas caminando frente al local en una hora normal"
     )
     flujo_vehicular = st.number_input(
         "Vehículos por hora",
-        min_value=0,
-        value=max(30, int(p["flujo"] * 1.5)),
+        min_value=minimos_modelo["flujo_vehicular"],
+        value=st.session_state.get("flujo_vehicular_sidebar", max(minimos_modelo["flujo_vehicular"], int(p["flujo"] * 1.5))),
         step=10,
+        key="flujo_vehicular_sidebar",
         help="Autos o motos que pasan frente al local"
     )
     conversion = st.number_input(
         "Conversión peatonal (%)",
-        min_value=0.1,
-        value=float(conversion_default[escenario]),
+        min_value=float(CONVERSION_MINIMA[escenario]),
+        value=st.session_state.get("conversion_sidebar", float(CONVERSION_MINIMA[escenario])),
         step=0.5,
+        key="conversion_sidebar",
         help="Porcentaje de peatones que entra y compra"
     ) / 100
     captacion_vehicular = st.number_input(
         "Captación vehicular (%)",
-        min_value=0.0,
-        value=float(captacion_vehicular_default[escenario]),
+        min_value=float(CAPTACION_VEHICULAR_MINIMA[escenario]),
+        value=st.session_state.get("captacion_vehicular_sidebar", float(CAPTACION_VEHICULAR_MINIMA[escenario])),
         step=0.1,
+        key="captacion_vehicular_sidebar",
         help="Porcentaje de vehículos que sí se detienen a comprar"
     ) / 100
     horas = st.number_input(
         "Horas abiertas por día",
-        min_value=8,
+        min_value=minimos_modelo["horas"],
         max_value=16,
-        value=12,
+        value=st.session_state.get("horas_sidebar", 12),
         step=1,
+        key="horas_sidebar",
         help="Horario diario de operación de la sucursal"
     )
-    dias = 30
+    dias = DIAS_MES
 
     flujo_peatonal_dia = flujo * horas
     flujo_vehicular_dia = flujo_vehicular * horas
@@ -564,15 +1527,12 @@ with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
     )
 
 with st.sidebar.expander("🧾 Gasto variable", expanded=False):
-    st.caption("Es el porcentaje de ventas que se te va en terminal, mermas, bolsas, promociones y operación variable.")
-    if st.session_state.get("modelo_gasto_variable_simple") != modelo:
-        st.session_state["gasto_variable_simple"] = float(gastos_variables_default[modelo])
-        st.session_state["modelo_gasto_variable_simple"] = modelo
-
+    st.caption("Se mantiene dentro de un rango comercialmente saludable para no castigar de más la utilidad.")
     gasto_variable_pct = st.number_input(
         "Gasto variable sobre ventas (%)",
         min_value=0.0,
-        value=st.session_state.get("gasto_variable_simple", float(gastos_variables_default[modelo])),
+        max_value=5.0,
+        value=min(st.session_state.get("gasto_variable_simple", float(p.get("gastos_var", 0.03) * 100)), 5.0),
         step=0.1,
         key="gasto_variable_simple",
         help="Si no estás seguro, deja el sugerido"
@@ -584,10 +1544,11 @@ with st.sidebar.expander("🛒 ¿Cuánto compra cada cliente?", expanded=True):
     st.caption("💡 El ticket promedio es lo que gasta un cliente típico")
     ticket = st.number_input(
         "Ticket promedio farmacia ($)", 
-        min_value=50,
+        min_value=minimos_modelo["ticket"],
         max_value=220,
-        value=min(max(p["ticket"], 50), 220),
+        value=st.session_state.get("ticket_sidebar", min(max(p["ticket"], minimos_modelo["ticket"]), 220)),
         step=5,
+        key="ticket_sidebar",
         help="¿Cuánto gasta en promedio un cliente en farmacia?"
     )
     
@@ -604,31 +1565,35 @@ if m["consultorio"]:
             "Consultas por día", 
             min_value=0,
             max_value=30,
-            value=min(max(p.get("consultas", 0), 0), 30),
+            value=st.session_state.get("consultas_sidebar", min(max(p.get("consultas", 0), 0), 30)),
             step=1,
+            key="consultas_sidebar",
             help="¿Cuántas consultas médicas esperas al día?"
         )
         ingreso_consulta = st.number_input(
             "Cobro por consulta ($)", 
             min_value=0,
             max_value=120,
-            value=min(max(p.get("ingreso_consulta", 40), 0), 120),
+            value=st.session_state.get("ingreso_consulta_sidebar", min(max(p.get("ingreso_consulta", 40), 0), 120)),
             step=5,
+            key="ingreso_consulta_sidebar",
             help="¿Cuánto cobras por cada consulta?"
         )
         ticket_receta = st.number_input(
             "Compra promedio con receta ($)", 
             min_value=80,
             max_value=320,
-            value=min(max(p.get("ticket_receta", 120), 80), 320),
+            value=st.session_state.get("ticket_receta_sidebar", min(max(p.get("ticket_receta", 120), 80), 320)),
             step=10,
+            key="ticket_receta_sidebar",
             help="Los pacientes con receta gastan más"
         )
         surten = st.number_input(
             "Pacientes que surten en tu farmacia (%)",
-            min_value=0.0,
-            value=float(surten_default[escenario]),
+            min_value=float(SURTEN_MINIMO[escenario]),
+            value=st.session_state.get("surten_sidebar", float(SURTEN_MINIMO[escenario])),
             step=5.0,
+            key="surten_sidebar",
             help="No todos los pacientes compran la receta contigo"
         ) / 100
         
@@ -650,50 +1615,25 @@ else:
 # PLAYGROUND DE GASTOS FIJOS
 # ═══════════════════════════════════════════════════════════════════════════════
 with st.sidebar.expander("🏢 Gastos Fijos (Detalle)", expanded=True):
-    st.caption("Añade o modifica gastos fijos mensuales")
-    
-    # Presets de gastos fijos por modelo
-    gastos_presets = {
-        "🏪 Mini": {
-            "Renta": 8000,
-            "Nómina": 6000,
-            "Luz": 1500,
-            "Internet/Tel": 500,
-            "Contador": 1000,
-            "Seguros": 500,
-            "Limpieza": 500,
-        },
-        "🩺 Consultorio": {
-            "Renta": 12000,
-            "Nómina farmacia": 8000,
-            "Nómina médico": 10000,
-            "Luz": 2500,
-            "Internet/Tel": 800,
-            "Contador": 1500,
-            "Seguros": 1200,
-            "Limpieza": 800,
-            "Insumos médicos": 1200,
-        },
-        "🛒 Super": {
-            "Renta": 18000,
-            "Nómina farmacia": 10000,
-            "Nómina médico": 10000,
-            "Nómina abarrotes": 5000,
-            "Luz": 4000,
-            "Internet/Tel": 1000,
-            "Contador": 2000,
-            "Seguros": 1500,
-            "Limpieza": 1200,
-            "Insumos médicos": 1300,
-        },
+    st.caption("El cumplimiento sanitario se considera como un solo parámetro automático.")
+    gf_default = obtener_gastos_fijos_modelo(modelo)
+    gastos_automaticos_modelo = GASTOS_FIJOS_AUTOMATICOS[modelo]
+    conceptos_automaticos_legado = {
+        "Responsable sanitario (RP)",
+        "RPBI",
+        "Cumplimiento sanitario (RP / RPBI)",
     }
-    
-    gf_default = gastos_presets[modelo]
     
     # Inicializar estado
     if "gastos_fijos_items" not in st.session_state or st.session_state.get("modelo_gf_anterior") != modelo:
         st.session_state.gastos_fijos_items = gf_default.copy()
         st.session_state.modelo_gf_anterior = modelo
+    else:
+        for concepto in list(st.session_state.gastos_fijos_items.keys()):
+            if concepto in conceptos_automaticos_legado and concepto not in gastos_automaticos_modelo:
+                del st.session_state.gastos_fijos_items[concepto]
+        for concepto, monto in gastos_automaticos_modelo.items():
+            st.session_state.gastos_fijos_items[concepto] = monto
     
     # Mostrar items de gastos
     gastos_fijos_total = 0
@@ -703,15 +1643,18 @@ with st.sidebar.expander("🏢 Gastos Fijos (Detalle)", expanded=True):
         col1, col2 = st.columns([3, 1])
         with col1:
             nuevo_valor = st.number_input(
-                item,
+                f"🔒 {item}" if item in gastos_automaticos_modelo else item,
                 min_value=0,
                 value=st.session_state.gastos_fijos_items[item],
                 step=100,
-                key=f"gf_{item}"
+                key=f"gf_{item}",
+                disabled=item in gastos_automaticos_modelo,
             )
             st.session_state.gastos_fijos_items[item] = nuevo_valor
         with col2:
-            if st.button("🗑️", key=f"del_gf_{item}"):
+            if item in gastos_automaticos_modelo:
+                st.caption("Automático")
+            elif st.button("🗑️", key=f"del_gf_{item}"):
                 del st.session_state.gastos_fijos_items[item]
                 st.rerun()
         gastos_fijos_total += nuevo_valor
@@ -737,158 +1680,178 @@ gastos_fijos = sum(st.session_state.gastos_fijos_items.values()) if "gastos_fijo
 # Proyección con rampa de arranque
 with st.sidebar.expander("📈 Arranque y crecimiento", expanded=True):
     st.caption("Un negocio suele arrancar flojo, crecer rápido al inicio y luego estabilizarse.")
+    opciones_arranque = ARRANQUE_OPCIONES_POR_ESCENARIO[escenario]
     arranque_opcion = st.selectbox(
         "Fuerza del arranque",
-        ["Normal", "Lento", "Fuerte"],
-        index=0,
+        opciones_arranque,
+        key="arranque_sidebar",
         help="Qué tan cerca arranca el mes 1 del nivel estabilizado"
     )
-    arranque_inicial = {"Lento": 0.45, "Normal": 0.55, "Fuerte": 0.70}[arranque_opcion]
+    arranque_inicial = ARRANQUE_OPCIONES_UI[arranque_opcion]
+    opciones_rampa = RAMPA_OPCIONES_POR_ESCENARIO[escenario]
     meses_rampa = st.selectbox(
-        "Meses para estabilizar la sucursal",
-        [3, 4, 5, 6],
-        index=1,
+        "Meses para estabilizar la sucursal (máx. 5)",
+        opciones_rampa,
+        key="meses_rampa_sidebar",
         help="Meses que tardas en llegar al nivel operativo normal"
     )
+    opciones_crecimiento = CRECIMIENTO_OPCIONES_POR_ESCENARIO[escenario]
     crec_opcion = st.selectbox(
         "Crecimiento mensual una vez estabilizado",
-        ["🐢 Conservador (1%/mes)", "🚶 Moderado (3%/mes)", "🚀 Agresivo (5%/mes)"],
-        index=1
+        opciones_crecimiento,
+        key="crecimiento_sidebar",
     )
-    crec = {"🐢 Conservador (1%/mes)": 0.01, "🚶 Moderado (3%/mes)": 0.03, "🚀 Agresivo (5%/mes)": 0.05}[crec_opcion]
+    crec = CRECIMIENTO_OPCIONES_UI[crec_opcion]
     gasto_lanzamiento = st.number_input(
         "Gasto extra de apertura por mes (meses 1-3)",
         min_value=0,
         max_value=40000,
-        value={"🏪 Mini": 12000, "🩺 Consultorio": 18000, "🛒 Super": 25000}[modelo],
+        value=st.session_state.get("gasto_lanzamiento_sidebar", {"🏪 Mini": 12000, "🩺 Consultorio": 18000, "🛒 Super": 25000}[modelo]),
         step=1000,
+        key="gasto_lanzamiento_sidebar",
         help="Publicidad de apertura, promociones, contratación y ajustes iniciales"
     )
 
-    st.info(
-        f"📈 Tu mes 1 arranca al {arranque_inicial*100:.0f}% del nivel estabilizado. "
-        f"Después del mes {meses_rampa}, el negocio crece {crec*100:.0f}% mensual."
-    )
+    arranque_inicial_efectivo = max(arranque_inicial, ARRANQUE_ESCENARIO[escenario])
+    crec_efectivo = max(crec, CRECIMIENTO_ESCENARIO[escenario])
+    meses_rampa_efectivos = min(meses_rampa, RAMPA_MAXIMA_ESCENARIO[escenario])
+    candados_arranque = []
+    if arranque_inicial_efectivo > arranque_inicial:
+        candados_arranque.append(f"arranque mínimo {arranque_inicial_efectivo*100:.0f}%")
+    if crec_efectivo > crec:
+        candados_arranque.append(f"crecimiento mínimo {crec_efectivo*100:.1f}%")
+    if meses_rampa_efectivos < meses_rampa:
+        candados_arranque.append(f"rampa máxima {meses_rampa_efectivos} meses")
 
-# Vector de estacionalidad fijo
-est_vector = np.ones(12)
+    st.info(
+        f"📈 Tu escenario opera con un arranque de {arranque_inicial_efectivo*100:.0f}% del nivel estabilizado, "
+        f"rampa de {meses_rampa_efectivos} meses y crecimiento posterior de {crec_efectivo*100:.1f}% mensual."
+    )
+    if candados_arranque:
+        st.caption(f"Candado comercial aplicado: {', '.join(candados_arranque)}.")
+    else:
+        st.caption("Las opciones visibles ya respetan los mínimos comerciales del escenario.")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CÁLCULOS - MES ESTABILIZADO
 # ═══════════════════════════════════════════════════════════════════════════════
-flujo_peatonal_mes = flujo * horas * dias
-flujo_vehicular_mes = flujo_vehicular * horas * dias
-clientes_peatonales_mes = int(flujo_peatonal_mes * conversion)
-clientes_vehiculares_mes = int(flujo_vehicular_mes * captacion_vehicular)
-clientes_mes = clientes_peatonales_mes + clientes_vehiculares_mes
+resultado = calcular_resultados_proyectados(
+    modelo=modelo,
+    escenario=escenario,
+    inversion_base=inversion,
+    flujo=flujo,
+    flujo_vehicular=flujo_vehicular,
+    conversion=conversion,
+    captacion_vehicular=captacion_vehicular,
+    horas=horas,
+    dias=dias,
+    ticket=ticket,
+    consultas=consultas,
+    surten=surten,
+    ticket_receta=ticket_receta,
+    ingreso_consulta=ingreso_consulta,
+    abarrotes_pct=abarrotes_pct,
+    cogs=cogs,
+    cogs_receta=cogs_receta,
+    cogs_abarrotes=cogs_abarrotes,
+    gastos_fijos=gastos_fijos,
+    gastos_var=gastos_var,
+    arranque_inicial=arranque_inicial_efectivo,
+    meses_rampa=meses_rampa_efectivos,
+    crec=crec_efectivo,
+    gasto_lanzamiento=gasto_lanzamiento,
+)
 
-ventas_farmacia = clientes_mes * ticket
-consultas_mes = consultas * dias if m["consultorio"] else 0
-ventas_recetas = consultas_mes * surten * ticket_receta
-ingresos_consulta = consultas_mes * ingreso_consulta
-ventas_abarrotes = ventas_farmacia * abarrotes_pct if m["abarrotes"] else 0
-ventas_totales = ventas_farmacia + ventas_recetas + ventas_abarrotes + ingresos_consulta
+meta_escenario_actual = BANDAS_RETORNO[escenario]
+colchon_operativo = resultado["colchon_operativo"]
+inversion_total = resultado["inversion_total"]
+flujo_peatonal_mes = resultado["flujo_peatonal_mes"]
+flujo_vehicular_mes = resultado["flujo_vehicular_mes"]
+clientes_peatonales_mes = resultado["clientes_peatonales_mes"]
+clientes_vehiculares_mes = resultado["clientes_vehiculares_mes"]
+clientes_mes = resultado["clientes_mes"]
+ventas_farmacia = resultado["ventas_farmacia"]
+consultas_mes = resultado["consultas_mes"]
+ventas_recetas = resultado["ventas_recetas"]
+ingresos_consulta = resultado["ingresos_consulta"]
+ventas_abarrotes = resultado["ventas_abarrotes"]
+ventas_totales = resultado["ventas_totales"]
+cogs_total = resultado["cogs_total"]
+utilidad_bruta = resultado["utilidad_bruta"]
+gastos_variables = resultado["gastos_variables"]
+utilidad_neta = resultado["utilidad_neta"]
+margen_neto = resultado["margen_neto"]
+ticket_prom = resultado["ticket_prom"]
+contribucion = resultado["contribucion"]
+ventas_be = resultado["ventas_be"]
+clientes_be = resultado["clientes_be"]
+porcentaje_equilibrio = resultado["porcentaje_equilibrio"]
+margen_seguridad = resultado["margen_seguridad"]
+mes_equilibrio_objetivo = resultado["mes_equilibrio_objetivo"]
+proyeccion = resultado["proyeccion"]
+proyeccion_num = resultado["proyeccion_num"]
+df = resultado["df"]
+df_num = resultado["df_num"]
+util_anual = resultado["util_anual"]
+ventas_anual = resultado["ventas_anual"]
+roi_anual = resultado["roi_anual"]
+meses_recuperacion = resultado["meses_recuperacion"]
+meses_recuperacion_fmt = resultado["meses_recuperacion_fmt"]
+anios_recuperacion_fmt = resultado["anios_recuperacion_fmt"]
+ventas_mes_1 = resultado["ventas_mes_1"]
+utilidad_mes_1 = resultado["utilidad_mes_1"]
+ventas_mes_estable = resultado["ventas_mes_estable"]
+utilidad_mes_estable = resultado["utilidad_mes_estable"]
+cumple_estandar_comercial = resultado["cumple_estandar_comercial"]
+clasificacion_retorno = resultado["clasificacion_retorno"]
+meta_comercial = resultado["meta_comercial"]
+retorno_visual = construir_retorno_visual(meses_recuperacion, escenario, cumple_estandar_comercial)
+clientes_mes_display = int(np.ceil(clientes_mes))
+clientes_be_display = int(np.ceil(clientes_be)) if np.isfinite(clientes_be) else 0
 
-# COGS
-cogs_farmacia = ventas_farmacia * cogs
-cogs_recetas_t = ventas_recetas * cogs_receta
-cogs_abarrotes_t = ventas_abarrotes * cogs_abarrotes
-cogs_total = cogs_farmacia + cogs_recetas_t + cogs_abarrotes_t
-
-# Utilidades
-utilidad_bruta = ventas_totales - cogs_total
-gastos_variables = ventas_totales * gastos_var
-utilidad_neta = utilidad_bruta - gastos_fijos - gastos_variables
-margen_neto = utilidad_neta / ventas_totales if ventas_totales > 0 else 0
-
-clientes_totales = clientes_mes + (consultas_mes if m["consultorio"] else 0)
-ticket_prom = ventas_totales / clientes_totales if clientes_totales > 0 else 0
-
-# Break-even con margen de contribución ponderado real
-contribucion = ((ventas_totales - cogs_total - gastos_variables) / ventas_totales) if ventas_totales > 0 else 0
-if contribucion > 0 and ticket_prom > 0:
-    ventas_be = gastos_fijos / contribucion
-    clientes_be = ventas_be / ticket_prom
-else:
-    ventas_be, clientes_be = float('inf'), float('inf')
-
-rampa = np.linspace(arranque_inicial, 1.0, meses_rampa)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PROYECCIÓN 12 MESES
-# ═══════════════════════════════════════════════════════════════════════════════
-proyeccion = []
-proyeccion_num = []
-utilidades_mensuales = []
-caja_acumulada = -inversion
-meses_recuperacion = float('inf')
-
-for t in range(12):
-    if t < meses_rampa:
-        factor = rampa[t]
-    else:
-        factor = ((1 + crec) ** (t - meses_rampa + 1))
-    factor *= est_vector[t]
-
-    vf = ventas_farmacia * factor
-    vr = ventas_recetas * factor
-    va = ventas_abarrotes * factor
-    ic = ingresos_consulta * factor
-    vt = vf + vr + va + ic
-
-    ct = vf * cogs + vr * cogs_receta + va * cogs_abarrotes
-    ub = vt - ct
-    gv = vt * gastos_var
-    gasto_extra_t = gasto_lanzamiento if t < 3 else 0
-    un = ub - gastos_fijos - gv - gasto_extra_t
-    mn = un / vt if vt > 0 else 0
-
-    proyeccion.append({
-        "Mes": t + 1,
-        "Ventas": f"${round(vt):,}",
-        "COGS": f"${round(ct):,}",
-        "Util. Bruta": f"${round(ub):,}",
-        "Gastos Fijos": f"${round(gastos_fijos):,}",
-        "Gastos Var.": f"${round(gv):,}",
-        "Apertura": f"${round(gasto_extra_t):,}",
-        "Util. Neta": f"${round(un):,}",
-        "Margen %": f"{round(mn * 100, 1)}%",
+resumen_escenarios = []
+for escenario_pdf in ["Conservador", "Medio", "Alto"]:
+    resultado_escenario = calcular_resultados_proyectados(
+        modelo=modelo,
+        escenario=escenario_pdf,
+        inversion_base=inversion,
+        flujo=max(flujo, MINIMOS_MODELO[modelo]["flujo"]),
+        flujo_vehicular=max(flujo_vehicular, MINIMOS_MODELO[modelo]["flujo_vehicular"]),
+        conversion=max(conversion, CONVERSION_MINIMA[escenario_pdf] / 100),
+        captacion_vehicular=max(captacion_vehicular, CAPTACION_VEHICULAR_MINIMA[escenario_pdf] / 100),
+        horas=max(horas, MINIMOS_MODELO[modelo]["horas"]),
+        dias=dias,
+        ticket=max(ticket, MINIMOS_MODELO[modelo]["ticket"]),
+        consultas=consultas,
+        surten=max(surten, SURTEN_MINIMO[escenario_pdf] / 100) if m["consultorio"] else surten,
+        ticket_receta=ticket_receta,
+        ingreso_consulta=ingreso_consulta,
+        abarrotes_pct=abarrotes_pct,
+        cogs=cogs,
+        cogs_receta=cogs_receta,
+        cogs_abarrotes=cogs_abarrotes,
+        gastos_fijos=gastos_fijos,
+        gastos_var=gastos_var,
+        arranque_inicial=max(arranque_inicial_efectivo, ARRANQUE_ESCENARIO[escenario_pdf]),
+        meses_rampa=min(meses_rampa_efectivos, RAMPA_MAXIMA_ESCENARIO[escenario_pdf]),
+        crec=max(crec_efectivo, CRECIMIENTO_ESCENARIO[escenario_pdf]),
+        gasto_lanzamiento=gasto_lanzamiento,
+    )
+    resumen_escenarios.append({
+        "Escenario": escenario_pdf,
+        "Seleccionado": "Sí" if escenario_pdf == escenario else "",
+        "Perfil": resultado_escenario["clasificacion_retorno"],
+        "Equilibrio meta": f"Mes {BANDAS_RETORNO[escenario_pdf]['equilibrio_mes']}",
+        "Meta retorno": f"{BANDAS_RETORNO[escenario_pdf]['payback_min']:.0f}-{BANDAS_RETORNO[escenario_pdf]['payback_max']:.0f} meses",
+        "Lectura retorno": (
+            f"{resultado_escenario['meses_recuperacion_real']:.1f} meses"
+            if resultado_escenario["cumple_estandar_comercial"] and np.isfinite(resultado_escenario["meses_recuperacion_real"])
+            else "Requiere ajuste"
+        ),
+        "ROI año 1": f"{resultado_escenario['roi_anual'] * 100:.1f}%",
+        "Ventas estables": f"${resultado_escenario['ventas_totales']:,.0f}",
+        "Estatus": "Dentro del estándar" if resultado_escenario["cumple_estandar_comercial"] else "Requiere ajuste",
     })
-
-    proyeccion_num.append({
-        "Mes": t + 1,
-        "Ventas": round(vt),
-        "Util. Neta": round(un),
-        "Caja Acumulada": round(caja_acumulada + un),
-        "Margen %": round(mn * 100, 1),
-    })
-    utilidades_mensuales.append(un)
-
-    caja_previa = caja_acumulada
-    caja_acumulada += un
-    if meses_recuperacion == float('inf') and caja_acumulada >= 0 and un > 0:
-        faltante = -caja_previa
-        meses_recuperacion = t + (faltante / un)
-
-df = pd.DataFrame(proyeccion)
-df_num = pd.DataFrame(proyeccion_num)
-
-util_anual = df_num["Util. Neta"].sum()
-ventas_anual = df_num["Ventas"].sum()
-roi_anual = util_anual / inversion if inversion > 0 else 0
-
-if meses_recuperacion == float('inf'):
-    utilidad_run_rate = max(utilidades_mensuales[-1], utilidad_neta, 0)
-    remanente = inversion - util_anual
-    if utilidad_run_rate > 0 and remanente > 0:
-        meses_recuperacion = 12 + (remanente / utilidad_run_rate)
-
-ventas_mes_1 = df_num.iloc[0]["Ventas"]
-utilidad_mes_1 = df_num.iloc[0]["Util. Neta"]
-ventas_mes_estable = ventas_totales
-utilidad_mes_estable = utilidad_neta
-meses_recuperacion_fmt = f"{meses_recuperacion:.1f} meses" if np.isfinite(meses_recuperacion) else "N/A"
-anios_recuperacion_fmt = f"{meses_recuperacion/12:.1f} años" if np.isfinite(meses_recuperacion) else "N/A"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # OUTPUT PRINCIPAL
@@ -905,219 +1868,152 @@ st.markdown(f'''
 ''', unsafe_allow_html=True)
 
 st.title(f"📊 Corrida Financiera - {modelo}")
-st.markdown(f"**Escenario:** {escenario} | **Inversión:** ${inversion:,}")
+st.markdown(
+    f"**Escenario:** {escenario} | **Inversión base:** ${inversion:,} | "
+    f"**Colchón:** ${colchon_operativo:,} | **Total a recuperar:** ${inversion_total:,}"
+)
+st.caption(
+    f"Clasificación actual: **{clasificacion_retorno}**. "
+    f"Meta del escenario: retorno máximo en {meta_escenario_actual['payback_max']:.0f} meses "
+    f"y equilibrio a más tardar en el mes {meta_escenario_actual['equilibrio_mes']}."
+)
 
-# Análisis de flujo y conversión
-st.markdown("### 👥 Análisis de Tráfico y Demanda")
+copy_modelo = MODELO_COMERCIAL[modelo]
+estatus_presentacion = (
+    "Dentro del estándar Líbano" if cumple_estandar_comercial
+    else "Cerca del estándar Líbano" if meta_comercial["alcanzable"]
+    else "Fuera del estándar Líbano"
+)
+mensaje_presentacion = (
+    "La corrida ya se mantiene dentro de los umbrales de retorno y equilibrio definidos por Farmacia Líbano."
+    if cumple_estandar_comercial
+    else "La corrida todavía no entra a la banda objetivo, pero sí muestra con claridad qué tendría que pasar para llevarla a estándar."
+    if meta_comercial["alcanzable"]
+    else "La base actual todavía no alcanza el estándar Líbano; primero conviene ajustar ubicación, costos o nivel de demanda."
+)
+retorno_hero = retorno_visual["hero"]
+retorno_real_texto = retorno_visual["caption"]
+banda_objetivo_texto = f"{meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses"
+retorno_reporte = meses_recuperacion_fmt if cumple_estandar_comercial else f"Meta comercial {banda_objetivo_texto}"
+retorno_reporte_detalle = (
+    f"Recuperación ya dentro de la banda comercial {banda_objetivo_texto}."
+    if cumple_estandar_comercial
+    else f"Objetivo comercial del escenario: {banda_objetivo_texto}. Hoy la corrida requiere ajuste para volver a ese rango."
+)
+meta_ventas_texto = fmt_dinero(meta_comercial["ventas_estables_minimas"]) if meta_comercial["ventas_estables_minimas"] else "N/D"
+meta_utilidad_texto = fmt_dinero(meta_comercial["utilidad_estable_minima"]) if meta_comercial["utilidad_estable_minima"] else "N/D"
+meta_tickets_texto = f"{meta_comercial['tickets_mes_minimos']:,}" if meta_comercial["tickets_mes_minimos"] else "N/D"
+faltante_ventas_texto = fmt_dinero(meta_comercial["faltante_ventas"]) if meta_comercial["faltante_ventas"] else fmt_dinero(0)
+faltante_tickets_texto = f"{meta_comercial['faltante_tickets']:,}" if meta_comercial["faltante_tickets"] else "0"
+meta_inversion_texto = fmt_dinero(meta_comercial["inversion_maxima_presentable"]) if meta_comercial["inversion_maxima_presentable"] else "N/D"
+recorte_inversion_texto = fmt_dinero(meta_comercial["recorte_inversion_requerido"]) if meta_comercial["recorte_inversion_requerido"] else fmt_dinero(0)
+gasto_fijo_meta_texto = fmt_dinero(meta_comercial["gasto_fijo_meta"]) if meta_comercial["gasto_fijo_meta"] is not None else "N/D"
+reduccion_gf_texto = fmt_dinero(meta_comercial["reduccion_gastos_fijos_requerida"]) if meta_comercial["reduccion_gastos_fijos_requerida"] else fmt_dinero(0)
+ticket_blended_meta_texto = fmt_dinero(meta_comercial["ticket_blended_minimo"]) if meta_comercial["ticket_blended_minimo"] else "N/D"
+incremento_ticket_texto = fmt_dinero(meta_comercial["incremento_ticket_blended"]) if meta_comercial["incremento_ticket_blended"] else fmt_dinero(0)
+retorno_principal_label = "Retorno estimado" if cumple_estandar_comercial else "Banda objetivo Líbano"
+accion_ventas = (
+    f"Llevar la venta estable hacia {meta_ventas_texto} al mes."
+    if meta_comercial["alcanzable"]
+    else "Revisar ubicación, mezcla y costos antes de volver a evaluar la sucursal."
+)
+accion_utilidad = (
+    f"Sostener una utilidad estable cercana a {meta_utilidad_texto}."
+    if meta_comercial["alcanzable"]
+    else "Rearmar la estructura operativa con una base de costos más ligera."
+)
+accion_tickets = (
+    f"Lograr al menos {meta_tickets_texto} tickets mensuales con la mezcla actual."
+    if meta_comercial["alcanzable"]
+    else "Revalidar tráfico, ticket y horario para construir una base operativa más sólida."
+)
+palancas_mejora = [
+    (
+        "Ajustar inversión inicial",
+        f"Con el desempeño actual, el total a recuperar debería quedar alrededor de {meta_inversion_texto}. Eso implica recortar cerca de {recorte_inversion_texto} entre CAPEX, inventario inicial o gastos de apertura."
+    ),
+    (
+        "Subir utilidad estabilizada",
+        f"El caso necesita acercarse a {meta_utilidad_texto} mensuales. Hoy está en {fmt_dinero(utilidad_mes_estable)}, así que faltan aproximadamente {fmt_dinero(meta_comercial['mejora_utilidad_requerida'])} al mes."
+    ),
+    (
+        "Aligerar gastos fijos",
+        f"Si la ruta fuera por estructura, el gasto fijo mensual tendría que bajar hacia {gasto_fijo_meta_texto}. Eso equivale a recortar cerca de {reduccion_gf_texto} al mes."
+    ),
+]
+condiciones_banda = [
+    f"Ventas estables objetivo: {meta_ventas_texto} al mes, es decir {faltante_ventas_texto} por encima del nivel actual.",
+    f"Tickets objetivo: {meta_tickets_texto} al mes. Con el ticket blended actual de {fmt_dinero(ticket_prom)}, eso implica sumar alrededor de {faltante_tickets_texto} tickets.",
+    f"Ticket blended de referencia: {ticket_blended_meta_texto}. Si se prefiere subir ticket en vez de tráfico, haría falta alrededor de {incremento_ticket_texto} adicionales por ticket.",
+]
+
+st.markdown(
+    f"""
+    <div class="sales-hero">
+        <h2>{copy_modelo['headline']}</h2>
+        <p>{copy_modelo['pitch']}</p>
+        <div class="sales-badges">
+            <span class="sales-badge">{estatus_presentacion}</span>
+            <span class="sales-badge">Escenario {escenario}</span>
+            <span class="sales-badge">Retorno meta {meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses</span>
+            <span class="sales-badge">Equilibrio meta mes {meta_escenario_actual['equilibrio_mes']}</span>
+        </div>
+        <p>{mensaje_presentacion}</p>
+        <div class="sales-grid">
+            <div class="sales-stat">
+                <div class="sales-stat-label">{retorno_principal_label}</div>
+                <div class="sales-stat-value">{retorno_hero}</div>
+                <div class="sales-stat-caption">{retorno_real_texto}</div>
+            </div>
+            <div class="sales-stat">
+                <div class="sales-stat-label">Ventas Estables</div>
+                <div class="sales-stat-value">{fmt_dinero(ventas_mes_estable)}</div>
+                <div class="sales-stat-caption">Run-rate mensual defendible para la conversación comercial.</div>
+            </div>
+            <div class="sales-stat">
+                <div class="sales-stat-label">Utilidad Estable</div>
+                <div class="sales-stat-value">{fmt_dinero(utilidad_mes_estable)}</div>
+                <div class="sales-stat-caption">Lo que deja la unidad al estabilizarse, ya considerando costos operativos.</div>
+            </div>
+            <div class="sales-stat">
+                <div class="sales-stat-label">ROI Año 1</div>
+                <div class="sales-stat-value">{roi_anual * 100:.0f}%</div>
+                <div class="sales-stat-caption">Impacto del arranque, apertura y crecimiento durante el primer año.</div>
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown("### 💼 Fortalezas del Formato")
+_render_sales_cards(copy_modelo["cards"], eyebrow="Fortaleza del formato")
+
+st.markdown(
+    f"""
+    <div class="sales-callout">
+        <h3>Lectura del Escenario</h3>
+        <p><strong>{escenario}:</strong> {ESCENARIO_COMERCIAL[escenario]} {copy_modelo['cierre']}</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Análisis y narrativa comercial
 peatones_dia = flujo * horas
 vehiculos_dia = flujo_vehicular * horas
 tickets_vehiculares_dia = vehiculos_dia * captacion_vehicular
 conversion_rate = conversion * 100
 captacion_rate = captacion_vehicular * 100
+crec_anual = ((1 + crec_efectivo) ** 12 - 1) * 100
+costo_producto = cogs_total
+gastos_extras = gastos_variables
+total_gastos = costo_producto + gastos_fijos + gastos_extras
 
-col_flujo1, col_flujo2, col_flujo3, col_flujo4 = st.columns(4)
-with col_flujo1:
-    st.metric("🚶 Peatones/día", f"{peatones_dia:,}")
-    st.caption("Flujo peatonal diario")
-with col_flujo2:
-    st.metric("🚗 Vehículos/día", f"{vehiculos_dia:,}")
-    st.caption(f"Captas {captacion_rate:.1f}%")
-with col_flujo3:
-    st.metric("🛍️ Tickets/mes", f"{clientes_mes:,}")
-    st.caption(f"Conversión peatonal de {conversion_rate:.1f}%")
-with col_flujo4:
-    st.metric("💳 Ticket promedio", f"${ticket_prom:,.0f}")
-    st.caption("Ticket blended con servicios")
-
-# Explicación detallada del % de conversión por escenario
-st.markdown("### 🎯 ¿Qué significa tu escenario?")
-
-if escenario == "Conservador":
-    st.warning(f"""
-    **🔴 ESCENARIO CONSERVADOR ({conversion_rate:.1f}% conversión peatonal)**
-    
-    **¿Qué significa?**
-    - De cada 100 personas que pasan frente a tu farmacia, solo **{int(conversion_rate)} entran y compran**
-    - Es como estar en una calle con competencia o ser nuevo en la zona
-    
-    **¿Cuándo pasa esto?**
-    - 🏪 Acabas de abrir y la gente no te conoce
-    - 🏬 Hay otras farmacias muy cerca (competencia fuerte)
-    - 🚶 La ubicación tiene poco flujo peatonal
-    - 💸 Los precios son altos comparado con la competencia
-    
-    **¿Es bueno o malo?**
-    - 👍 Es **realista** para empezar - mejor ser precavido
-    - 👍 Si los números salen bien aquí, ¡seguro tendrás éxito!
-    - ⚠️ Pero necesitas trabajar en atraer más clientes
-    """)
-elif escenario == "Medio":
-    st.info(f"""
-    **🟡 ESCENARIO MEDIO ({conversion_rate:.1f}% conversión peatonal)**
-    
-    **¿Qué significa?**
-    - De cada 100 personas que pasan, **{int(conversion_rate)} entran y compran**
-    - Es el escenario "normal" - ni muy bueno ni muy malo
-    
-    **¿Cuándo pasa esto?**
-    - 🏪 Ya llevas algunos meses funcionando
-    - 🏬 Hay competencia pero también tienes tus clientes fieles
-    - 🚶 Ubicación decente con flujo regular de gente
-    - 💊 Ofreces buen servicio y precios competitivos
-    
-    **¿Es bueno o malo?**
-    - 👍 Es el escenario **más realista** en la mayoría de casos
-    - 👍 Balanceado - ni muy optimista ni muy pesimista
-    - 📈 Con esfuerzo puedes llegar al escenario "Alto"
-    """)
-else:  # Alto
-    st.success(f"""
-    **🟢 ESCENARIO ALTO ({conversion_rate:.1f}% conversión peatonal)**
-    
-    **¿Qué significa?**
-    - De cada 100 personas que pasan, **{int(conversion_rate)} entran y compran**
-    - ¡Es el "sueño dorado" de cualquier farmacia!
-    
-    **¿Cuándo pasa esto?**
-    - 🏪 Excelente ubicación (esquina, cerca de hospitales, etc.)
-    - 🏬 Poca o nula competencia cerca
-    - 🚶 Mucho flujo peatonal (zonas comerciales, plazas)
-    - 💊 Servicio excepcional y clientes que te recomiendan
-    
-    **¿Es bueno o malo?**
-    - 👍 ¡Es el **mejor escenario posible**!
-    - ⚠️ Pero también el más **optimista** - difícil de lograr
-    - 💡 Si logras esto, tendrás un negocio muy exitoso
-    """)
-
-# ¿Cómo afectan los escenarios a todos los números?
-st.markdown("### 📊 ¿Cómo afecta tu escenario a TODOS los números?")
-
-col_esc1, col_esc2, col_esc3 = st.columns(3)
-
-with col_esc1:
-    st.markdown("**🚶 Tráfico Peatonal**")
-    st.metric("Peatones/día", f"{peatones_dia:,}")
-    if escenario == "Conservador":
-        st.caption("🔴 Ubicación con poco flujo")
-    elif escenario == "Medio":
-        st.caption("🟡 Flujo normal/regular")
-    else:
-        st.caption("🟢 Mucho flujo peatonal")
-
-with col_esc2:
-    st.markdown("**🚗 Tráfico Vehicular**")
-    st.metric("Tickets desde autos/día", f"{tickets_vehiculares_dia:,.0f}")
-    if escenario == "Conservador":
-        st.caption("🔴 Baja captura por visibilidad")
-    elif escenario == "Medio":
-        st.caption("🟡 Captura razonable")
-    else:
-        st.caption("🟢 Buena accesibilidad")
-
-with col_esc3:
-    st.markdown("**📈 Crecimiento**")
-    crec_anual = ((1 + crec) ** 12 - 1) * 100
-    st.metric("Crecimiento anual", f"{crec_anual:.1f}%")
-    if escenario == "Conservador":
-        st.caption("🔴 Crecimiento lento")
-    elif escenario == "Medio":
-        st.caption("🟡 Crecimiento moderado")
-    else:
-        st.caption("🟢 Crecimiento acelerado")
-
-st.info(f"""
-**💡 En resumen:** El escenario **{escenario}** no solo afecta cuántos clientes te compran, 
-sino también cuánto gastan, qué tan rápido crece tu negocio, y qué márgenes puedes obtener.
-
-**Modelo de arranque:** El mes 1 arranca en **{arranque_inicial*100:.0f}%** del nivel estabilizado
-y cargas **${gasto_lanzamiento:,}** por mes de apertura durante los primeros 3 meses.
-""")
-
-st.markdown("---")
-
-# Validaciones claras
 if contribucion <= 0:
-    st.error("❌ Los números no cuadran. Los costos son muy altos para generar ganancia.")
+    st.warning("⚠️ Los supuestos actuales están fuera del rango comercial sugerido. Ajusta costos o tráfico para mantener una corrida presentable.")
     st.stop()
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# RESUMEN EJECUTIVO (Lo más importante arriba)
-# ═══════════════════════════════════════════════════════════════════════════════
-st.markdown("### 🎯 ¿Es rentable este negocio?")
-
-# Semáforo de rentabilidad
-if util_anual > 0 and meses_recuperacion < 30:
-    st.success(f"""
-    ✅ **¡SÍ ES RENTABLE!**
-    
-    💰 **Mes 1: ${utilidad_mes_1:,.0f}** y luego estabilizas en **${utilidad_mes_estable:,.0f}/mes**
-    
-    ⏱️ **Recuperas tu inversión en {meses_recuperacion_fmt}**
-    
-    📈 **ROI del {roi_anual*100:.0f}% en el primer año** (ya considera rampa y apertura)
-    """)
-elif util_anual > 0:
-    st.warning(f"""
-    ⚠️ **ES RENTABLE, PERO TARDA**
-    
-    💰 **Mes 1: ${utilidad_mes_1:,.0f}** y estabilizas en **${utilidad_mes_estable:,.0f}/mes**
-    
-    ⏱️ Pero recuperas inversión en {meses_recuperacion_fmt} ({anios_recuperacion_fmt})
-    
-    💡 Conviene optimizar renta, mezcla de producto o tráfico antes de invertir
-    """)
-else:
-    st.error(f"""
-    ❌ **NO ES RENTABLE**
-    
-    📉 El primer año cerraría con **${abs(util_anual):,.0f}** de pérdida acumulada
-    
-    💡 Necesitas más tráfico, mejor conversión, más margen o una estructura de costos más ligera
-    """)
-
-# KPIs simplificados con explicaciones
-st.markdown("### 📊 Los números clave")
-
-c1, c2, c3 = st.columns(3)
-with c1:
-    st.metric("👥 Tickets/mes", f"{clientes_mes:,}")
-    st.caption("Tickets mensuales estabilizados")
-    
-with c2:
-    st.metric("💵 Ventas mes 1", f"${ventas_mes_1:,.0f}")
-    st.caption("Ya con rampa de arranque")
-    
-with c3:
-    st.metric("💰 Utilidad mes 1", f"${utilidad_mes_1:,.0f}")
-    st.caption("Después de apertura y operación")
-
-c4, c5, c6 = st.columns(3)
-with c4:
-    st.metric("📈 Ventas estabilizadas", f"${ventas_mes_estable:,.0f}")
-    st.caption("Mes maduro sin rampa")
-    
-with c5:
-    st.metric("🎯 Punto de equilibrio", f"${ventas_be:,.0f}")
-    st.caption("Ventas mínimas para cubrir costos fijos")
-    
-with c6:
-    st.metric("📈 ROI Año 1", f"{roi_anual*100:.0f}%")
-    st.caption("Ya incluye meses flojos")
-
-c7, c8, c9 = st.columns(3)
-with c7:
-    st.metric("💼 Utilidad estabilizada", f"${utilidad_mes_estable:,.0f}")
-    st.caption("Run-rate operativo esperado")
-with c8:
-    st.metric("⏱️ Recuperación", f"{meses_recuperacion:.1f} meses" if meses_recuperacion < 120 else "N/A")
-    st.caption("Tiempo para recuperar tu inversión")
-with c9:
-    st.metric("💸 Caja al mes 12", f"${df_num.iloc[-1]['Caja Acumulada']:,.0f}")
-    st.caption("Caja acumulada neta")
-
-# ¿De dónde vienen las ventas?
-st.markdown("### 💵 ¿De dónde viene el dinero?")
 desglose = {"💊 Farmacia": ventas_farmacia}
 if m["consultorio"]:
     desglose["💉 Recetas"] = ventas_recetas
@@ -1125,134 +2021,343 @@ if m["consultorio"]:
 if m["abarrotes"]:
     desglose["🛒 Abarrotes"] = ventas_abarrotes
 
-col_desg = st.columns(len(desglose))
-for i, (k, v) in enumerate(desglose.items()):
-    pct = v / ventas_totales * 100 if ventas_totales > 0 else 0
-    with col_desg[i]:
-        st.metric(k, f"${v:,.0f}")
-        st.caption(f"{pct:.0f}% de tus ventas")
+margen_farmacia = (1 - cogs) * 100
+margen_recetas = (1 - cogs_receta) * 100 if m["consultorio"] else None
+margen_abarrotes = (1 - p.get("cogs_abarrotes", 0.9)) * 100 if m["abarrotes"] else None
 
-# Análisis de márgenes por categoría (como analista financiero)
-st.markdown("### 📈 Análisis de Márgenes por Categoría")
-st.markdown("""
-**Como analista financiero especializado en farmacias, estos son los márgenes optimizados:**
+escenario_visual = {
+    "Conservador": {
+        "titulo": "Lectura prudente para validar la ubicación",
+        "descripcion": f"Sirve para mostrar que el proyecto todavía se sostiene aun con una conversión peatonal de {conversion_rate:.1f}% y un arranque más frío.",
+        "bullets": [
+            "Útil cuando el franquiciatario quiere ver control de riesgo antes de decidir.",
+            "Pone la conversación en disciplina operativa, tráfico y curva de maduración.",
+            "Si este escenario se defiende, la lectura de viabilidad gana mucha credibilidad.",
+        ],
+    },
+    "Medio": {
+        "titulo": "Escenario base para revisar viabilidad",
+        "descripcion": f"Combina una conversión peatonal de {conversion_rate:.1f}% con una dinámica de crecimiento razonable para una conversación realista y sólida.",
+        "bullets": [
+            "Es la mejor base para revisar si la sucursal entra al estándar.",
+            "Balancea prudencia financiera con una lectura operativa defendible.",
+            "Ayuda a alinear expectativas sin perder tracción comercial.",
+        ],
+    },
+    "Alto": {
+        "titulo": "Techo comercial del formato",
+        "descripcion": f"Expone el potencial máximo alcanzable con {conversion_rate:.1f}% de conversión peatonal, buena visibilidad y ejecución operativa fuerte.",
+        "bullets": [
+            "Sirve para enseñar el upside cuando la ubicación es premium.",
+            "Muestra la mejor versión operativa del formato bajo buena ejecución.",
+            "Debe usarse como marco de potencial, no como promesa automática.",
+        ],
+    },
+}
 
-- **💊 Medicamentos Genéricos**: 35-45% margen (Mayor volumen, competencia alta)
-- **💉 Medicamentos Patente**: 15-25% margen (Precios controlados, menor flexibilidad)  
-- **🛒 Abarrotes**: 8-15% margen (Atrae tráfico, pero rentabilidad baja)
-- **🩺 Consultas Médicas**: 75-80% margen (Solo costos de insumos básicos)
+argumentos_cards = [
+    (
+        "Caso de inversión",
+        f"Con una inversión total de {fmt_dinero(inversion_total)} y una meta de retorno de {meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses, la propuesta entra en una conversación de retorno clara y accionable."
+    ),
+    (
+        "Defensa operativa",
+        f"El punto de equilibrio exige {porcentaje_equilibrio:.0f}% de la venta estable, lo que deja un margen de seguridad de {margen_seguridad:.0f}% cuando la unidad madura."
+    ),
+    (
+        "Historia de crecimiento",
+        f"El arranque parte en {arranque_inicial_efectivo*100:.0f}% y luego escala con una dinámica de crecimiento que permite explicar la maduración del negocio sin prometer magia desde el mes uno."
+    ),
+]
 
-**Tu mix actual considera:**""")
+tabs = st.tabs(["🎯 Cierre Ejecutivo", "👥 Mercado y Demanda", "💸 Economía", "📈 Proyección"])
 
-col_mg1, col_mg2, col_mg3 = st.columns(3)
-with col_mg1:
-    margen_farmacia = (1 - cogs) * 100
-    st.metric("💊 Margen Farmacia", f"{margen_farmacia:.0f}%")
-    st.caption("Mix genéricos/patente optimizado")
-
-with col_mg2:
-    if m["consultorio"]:
-        margen_recetas = (1 - cogs_receta) * 100
-        st.metric("💉 Margen Recetas", f"{margen_recetas:.0f}%")
-        st.caption("Recetas médicas especializadas")
+with tabs[0]:
+    st.markdown("### 🎯 Cierre Ejecutivo")
+    if cumple_estandar_comercial:
+        render_insight_panel(
+            "Estatus de Viabilidad",
+            "Dentro del estándar Líbano",
+            f"La corrida ya cae en una banda comercial defendible. Recupera la inversión total en {meses_recuperacion_fmt} y proyecta un ROI del {roi_anual*100:.0f}% en el primer año.",
+            [
+                f"Mes 1 deja aproximadamente {fmt_dinero(utilidad_mes_1)}.",
+                f"La unidad estabilizada deja alrededor de {fmt_dinero(utilidad_mes_estable)} al mes.",
+                "La base operativa ya se sostiene con los parámetros actuales.",
+            ],
+        )
+    elif meta_comercial["alcanzable"]:
+        render_insight_panel(
+            "Estatus de Viabilidad",
+            "Ajustable para entrar a estándar",
+            "La mezcla actual todavía no entra en la banda objetivo, pero la app ya señala el mínimo operativo para volverla defendible.",
+            [
+                f"Ventas estables mínimas: {fmt_dinero(meta_comercial['ventas_estables_minimas'])} al mes.",
+                f"Utilidad estable mínima: {fmt_dinero(meta_comercial['utilidad_estable_minima'])} al mes.",
+                f"Tickets mensuales mínimos: {meta_comercial['tickets_mes_minimos']:,}.",
+            ],
+        )
     else:
-        st.metric("💉 Recetas", "N/A")
-        st.caption("No aplica en este modelo")
+        render_insight_panel(
+            "Estatus de Viabilidad",
+            "Conviene replantear la base operativa",
+            "La estructura actual no da una base suficiente para sostener la sucursal en la banda objetivo. Aquí conviene corregir ubicación, ticket o costos antes de seguir.",
+            [
+                "Todavía no conviene generar PDF.",
+                "Primero hay que reconstruir la base económica de la sucursal.",
+                "El objetivo es volver a una banda defendible sin forzar el discurso.",
+            ],
+        )
 
-with col_mg3:
-    if m["abarrotes"]:
-        margen_abarrotes = (1 - p.get("cogs_abarrotes", 0.9)) * 100
-        st.metric("🛒 Margen Abarrotes", f"{margen_abarrotes:.0f}%")
-        st.caption("Productos de conveniencia")
-    else:
-        st.metric("🛒 Abarrotes", "N/A")
-        st.caption("No aplica en este modelo")
+    render_summary_strip([
+        ("Lectura de retorno", retorno_visual["resumen"]),
+        ("Equilibrio operativo", f"Punto de equilibrio en {fmt_dinero(ventas_be)} y meta comercial de equilibrio al mes {mes_equilibrio_objetivo}."),
+        ("Ruta de viabilidad", "Primero valida demanda y mezcla, después utilidad estabilizada y al final recuperación dentro del estándar."),
+    ])
 
-# ¿En qué se va el dinero?
-st.markdown("### 💸 ¿En qué se va el dinero?")
+    st.markdown("### 📊 Números Clave")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("👥 Tickets/mes", f"{clientes_mes_display:,}")
+        st.caption("Tickets mensuales estabilizados")
+    with c2:
+        st.metric("💵 Ventas mes 1", f"${ventas_mes_1:,.0f}")
+        st.caption("Ya con rampa de arranque")
+    with c3:
+        st.metric("💰 Utilidad mes 1", f"${utilidad_mes_1:,.0f}")
+        st.caption("Después de apertura y operación")
 
-# Calcular gastos para mostrar
-costo_producto = cogs_total
-gastos_extras = gastos_variables
+    c4, c5, c6 = st.columns(3)
+    with c4:
+        st.metric("📈 Ventas estabilizadas", f"${ventas_mes_estable:,.0f}")
+        st.caption("Mes maduro sin rampa")
+    with c5:
+        st.metric("🎯 Punto de equilibrio", f"${ventas_be:,.0f}")
+        st.caption(f"{porcentaje_equilibrio:.0f}% de tus ventas estabilizadas")
+    with c6:
+        st.metric("📈 ROI Año 1", f"{roi_anual*100:.0f}%")
+        st.caption("Ya incluye meses flojos y colchón")
 
-col_g1, col_g2, col_g3, col_g4 = st.columns(4)
-with col_g1:
-    st.metric("📦 Mercancía", f"${costo_producto:,.0f}")
-    st.caption("Lo que te cuesta el producto")
-with col_g2:
-    st.metric("🏢 Gastos Fijos", f"${gastos_fijos:,}")
-    st.caption("Renta, nómina, luz, etc.")
-with col_g3:
-    st.metric("📊 Gastos variables", f"${gastos_extras:,.0f}")
-    st.caption(f"{gasto_variable_pct:.1f}% de las ventas")
-with col_g4:
-    total_gastos = costo_producto + gastos_fijos + gastos_extras
-    st.metric("📉 Total gastos", f"${total_gastos:,.0f}")
-    st.caption("Antes de gastos de apertura")
+    c7, c8, c9 = st.columns(3)
+    with c7:
+        st.metric("💼 Utilidad estabilizada", f"${utilidad_mes_estable:,.0f}")
+        st.caption("Run-rate operativo esperado")
+    with c8:
+        st.metric("⏱️ Recuperación" if cumple_estandar_comercial else "🎯 Banda objetivo", retorno_visual["metrica"])
+        st.caption(f"Estándar Líbano: {meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses")
+    with c9:
+        st.metric("💸 Recuperado al mes 30", f"${df_num.iloc[-1]['Recuperado']:,.0f}")
+        st.caption("Avance acumulado sobre la inversión total")
 
-# Desglose detallado (colapsable)
-with st.expander("📋 Ver detalle de inversión y gastos"):
-    col_inv, col_gf, col_gv = st.columns(3)
+    if not cumple_estandar_comercial and meta_comercial["alcanzable"]:
+        st.markdown("### 🧱 Estándar mínimo operativo")
+        render_summary_strip([
+            ("Meta ventas/mes", f"{fmt_dinero(meta_comercial['ventas_estables_minimas'])} para volver al estándar."),
+            ("Meta utilidad/mes", f"{fmt_dinero(meta_comercial['utilidad_estable_minima'])} como run-rate mínimo."),
+            ("Meta tickets/mes", f"{meta_comercial['tickets_mes_minimos']:,} tickets con la mezcla actual."),
+        ])
+        render_insight_panel(
+            "Qué tendría que pasar",
+            f"Para entrar a la banda {banda_objetivo_texto}",
+            "La sucursal puede acercarse al estándar por desempeño, por estructura o por inversión inicial. La app te deja ver las tres rutas sin cambiar la historia financiera.",
+            condiciones_banda,
+        )
 
-    with col_inv:
-        st.markdown("**💰 Tu Inversión Inicial**")
-        st.metric("Monto total", f"${inversion:,.0f}")
-        st.caption("Editable desde el panel lateral")
+        st.markdown("### 🔧 Palancas de mejora")
+        _render_sales_cards(palancas_mejora, eyebrow="Palanca cuantificada")
 
-    with col_gf:
-        st.markdown("**🏢 Tus Gastos Fijos Mensuales**")
-        if "gastos_fijos_items" in st.session_state:
-            gf_df = pd.DataFrame([
-                {"Concepto": k, "Monto": f"${v:,}"} 
-                for k, v in st.session_state.gastos_fijos_items.items()
-            ])
-            st.dataframe(gf_df, use_container_width=True, hide_index=True)
-            st.markdown(f"**Total: ${gastos_fijos:,}/mes**")
+    st.markdown("### 🧭 Fortalezas del modelo")
+    _render_sales_cards(argumentos_cards, eyebrow="Lectura del modelo")
 
-    with col_gv:
-        st.markdown("**📊 Tu Gasto Variable**")
-        st.metric("Porcentaje", f"{gasto_variable_pct:.1f}%")
-        st.caption(f"Más ${gasto_lanzamiento:,}/mes de apertura en meses 1-3")
+    st.markdown("### 🤝 Ruta de viabilidad")
+    col_cierre1, col_cierre2 = st.columns(2)
+    with col_cierre1:
+        st.markdown(
+            """
+            <div class="sales-card">
+                <div class="sales-section-title">Lectura compartida</div>
+                <h4>Cómo revisar esta sucursal en mesa</h4>
+                <p>
+                    Empieza por la demanda y la mezcla del formato, sigue con la utilidad estabilizada y cierra con el tiempo de recuperación.
+                    La idea es que vendedor y franquiciatario lean la misma historia económica con orden y sin exagerar supuestos.
+                </p>
+                <ul class="sales-checklist">
+                    <li>Primero: demanda local, tráfico y ticket.</li>
+                    <li>Segundo: ventas estabilizadas, utilidad y equilibrio.</li>
+                    <li>Tercero: inversión total, rampa de arranque y recuperación.</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col_cierre2:
+        cierre_html = (
+            f"""
+            <div class="sales-card">
+                <div class="sales-section-title">Siguiente paso recomendado</div>
+                <h4>{'Caso listo para avanzar' if cumple_estandar_comercial else 'Ajustes antes de avanzar'}</h4>
+                <p>{'La corrida ya puede usarse como base de decisión porque entra al estándar definido por Líbano.' if cumple_estandar_comercial else 'Todavía conviene ajustar supuestos antes de tomarla como base de decisión.'}</p>
+                <ul class="sales-checklist">
+                    <li>{'Preparar el PDF y revisar ubicación, inversión y cronograma.' if cumple_estandar_comercial else accion_ventas}</li>
+                    <li>{'Validar que el equilibrio esperado sea consistente con la apertura.' if cumple_estandar_comercial else accion_utilidad}</li>
+                    <li>{'Confirmar con el franquiciatario la base operativa y el plan de arranque.' if cumple_estandar_comercial else accion_tickets}</li>
+                </ul>
+            </div>
+            """
+        )
+        st.markdown(cierre_html, unsafe_allow_html=True)
 
-# Proyección 12 meses simplificada
-st.markdown("### 📅 ¿Cómo se ve el primer año?")
-# Tabla simplificada
-df_simple = pd.DataFrame([{
-    "Mes": p["Mes"],
-    "Ventas": p["Ventas"],
-    "Apertura": p["Apertura"],
-    "Te queda": p["Util. Neta"],
-    "Caja acumulada": f"${df_num.iloc[p['Mes'] - 1]['Caja Acumulada']:,.0f}",
-} for p in proyeccion])
-st.dataframe(df_simple, use_container_width=True, hide_index=True)
+with tabs[1]:
+    st.markdown("### 👥 Mercado y Demanda")
+    render_summary_strip([
+        ("Tráfico peatonal", f"{peatones_dia:,} personas al día con conversión peatonal de {conversion_rate:.1f}%."),
+        ("Tráfico vehicular", f"{vehiculos_dia:,} vehículos al día con captación de {captacion_rate:.1f}%."),
+        ("Crecimiento esperado", f"Después del mes {meses_rampa_efectivos} la unidad crece a un ritmo anualizado de {crec_anual:.1f}%."),
+    ])
 
-col_anual1, col_anual2 = st.columns(2)
-with col_anual1:
-    st.metric("💵 Ventas del año", f"${ventas_anual:,.0f}")
-with col_anual2:
-    st.metric("💰 Ganancia del año", f"${util_anual:,.0f}")
+    col_flujo1, col_flujo2, col_flujo3, col_flujo4 = st.columns(4)
+    with col_flujo1:
+        st.metric("🚶 Peatones/día", f"{peatones_dia:,}")
+        st.caption("Flujo peatonal diario")
+    with col_flujo2:
+        st.metric("🚗 Vehículos/día", f"{vehiculos_dia:,}")
+        st.caption(f"Captas {captacion_rate:.1f}%")
+    with col_flujo3:
+        st.metric("🛍️ Tickets desde autos/día", f"{tickets_vehiculares_dia:,.0f}")
+        st.caption("Tráfico que sí se convierte")
+    with col_flujo4:
+        st.metric("💳 Ticket promedio", f"${ticket_prom:,.0f}")
+        st.caption("Ticket blended con servicios")
 
-# Gráfica simple
-st.markdown("### 📈 Evolución de tu negocio")
-st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta", "Caja Acumulada"]])
+    render_insight_panel(
+        "Escenario Seleccionado",
+        escenario_visual[escenario]["titulo"],
+        escenario_visual[escenario]["descripcion"],
+        escenario_visual[escenario]["bullets"],
+    )
 
-# Resumen final claro
-st.markdown("---")
-st.markdown(f"""
-### 🎯 Resumen para {modelo}
+    col_merc1, col_merc2 = st.columns([1.15, 0.85])
+    with col_merc1:
+        st.markdown("#### 🧭 Comparativo de escenarios")
+        st.dataframe(pd.DataFrame(resumen_escenarios), use_container_width=True, hide_index=True)
+    with col_merc2:
+        st.markdown("#### 💵 Mezcla de ingresos")
+        render_horizontal_bar_chart(desglose, "Participación mensual por línea", VERDE)
 
-| Lo que inviertes | Lo que pagas cada mes | Lo que vendes al año | Lo que te queda |
-|------------------|----------------------|---------------------|-----------------|
-| **${inversion:,}** | **${gastos_fijos:,}** | **${ventas_anual:,.0f}** | **${util_anual:,.0f}** |
+with tabs[2]:
+    st.markdown("### 💸 Economía del Negocio")
+    render_summary_strip([
+        ("Punto de equilibrio", f"{fmt_dinero(ventas_be)} al mes para cubrir la estructura fija."),
+        ("Margen de seguridad", f"{margen_seguridad:.0f}% de holgura frente a la venta estabilizada."),
+        ("Colchón operativo", f"{fmt_dinero(colchon_operativo)} incorporado para una lectura comercial más sólida."),
+    ])
 
-**En palabras simples:**
-- 💰 Inviertes **${inversion:,}** una sola vez para abrir
-- 🏢 Pagas **${gastos_fijos:,}** cada mes de gastos fijos (renta, luz, sueldos...)
-- 📈 En el **mes 1** vendes **${ventas_mes_1:,.0f}**; ya estabilizado vendes **${ventas_totales:,.0f}** al mes
-- 💵 El **mes 1** puedes ganar o perder **${utilidad_mes_1:,.0f}**; estabilizado te quedan **${utilidad_neta:,.0f}**
-- ⏱️ Recuperas lo invertido en **{meses_recuperacion_fmt}** ({anios_recuperacion_fmt})
-- 🎯 Necesitas vender mínimo **${ventas_be:,.0f}/mes** para no perder dinero
-""")
+    col_mg1, col_mg2, col_mg3 = st.columns(3)
+    with col_mg1:
+        st.metric("💊 Margen Farmacia", f"{margen_farmacia:.0f}%")
+        st.caption("Mix genéricos/patente optimizado")
+    with col_mg2:
+        if m["consultorio"]:
+            st.metric("💉 Margen Recetas", f"{margen_recetas:.0f}%")
+            st.caption("Recetas médicas especializadas")
+        else:
+            st.metric("💉 Recetas", "N/A")
+            st.caption("No aplica en este modelo")
+    with col_mg3:
+        if m["abarrotes"]:
+            st.metric("🛒 Margen Abarrotes", f"{margen_abarrotes:.0f}%")
+            st.caption("Productos de conveniencia")
+        else:
+            st.metric("🛒 Abarrotes", "N/A")
+            st.caption("No aplica en este modelo")
+
+    col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+    with col_g1:
+        st.metric("📦 Mercancía", f"${costo_producto:,.0f}")
+        st.caption("Lo que te cuesta el producto")
+    with col_g2:
+        st.metric("🏢 Gastos Fijos", f"${gastos_fijos:,}")
+        st.caption("Renta, nómina, luz, etc.")
+    with col_g3:
+        st.metric("📊 Gastos variables", f"${gastos_extras:,.0f}")
+        st.caption(f"{gasto_variable_pct:.1f}% de las ventas")
+    with col_g4:
+        st.metric("📉 Total gastos", f"${total_gastos:,.0f}")
+        st.caption("Antes de gastos de apertura")
+
+    col_econ1, col_econ2 = st.columns(2)
+    with col_econ1:
+        render_horizontal_bar_chart(
+            {"Mercancía": costo_producto, "Gastos fijos": gastos_fijos, "Gastos variables": gastos_extras},
+            "En qué se va el dinero",
+            AZUL,
+        )
+    with col_econ2:
+        render_insight_panel(
+            "Lectura Financiera",
+            "Lo importante no es solo vender más, sino vender con margen",
+            f"La utilidad estable proyectada ronda {fmt_dinero(utilidad_mes_estable)} y el equilibrio exige {porcentaje_equilibrio:.0f}% de la venta estable. Eso permite explicar de forma muy clara cuándo la sucursal empieza a dejar dinero de verdad.",
+            [
+                f"Mes de equilibrio objetivo: {mes_equilibrio_objetivo}.",
+                f"Gasto extra de apertura: {fmt_dinero(gasto_lanzamiento)} por mes durante los primeros 3 meses.",
+                f"Total a recuperar: {fmt_dinero(inversion_total)} incluyendo colchón.",
+            ],
+        )
+
+    with st.expander("📋 Ver detalle de inversión y gastos"):
+        col_inv, col_gf, col_gv = st.columns(3)
+        with col_inv:
+            st.markdown("**💰 Tu Inversión Inicial**")
+            st.metric("Monto base", f"${inversion:,.0f}")
+            st.caption(f"Colchón operativo automático: ${colchon_operativo:,.0f}")
+            st.markdown(f"**Total a recuperar: ${inversion_total:,.0f}**")
+        with col_gf:
+            st.markdown("**🏢 Tus Gastos Fijos Mensuales**")
+            if "gastos_fijos_items" in st.session_state:
+                gf_df = pd.DataFrame([
+                    {"Concepto": k, "Monto": f"${v:,}"}
+                    for k, v in st.session_state.gastos_fijos_items.items()
+                ])
+                st.dataframe(gf_df, use_container_width=True, hide_index=True)
+                st.markdown(f"**Total: ${gastos_fijos:,}/mes**")
+        with col_gv:
+            st.markdown("**📊 Tu Gasto Variable**")
+            st.metric("Porcentaje", f"{gasto_variable_pct:.1f}%")
+            st.caption(f"Más ${gasto_lanzamiento:,}/mes de apertura en meses 1-3")
+            st.markdown(f"**Equilibrio operativo objetivo: mes {mes_equilibrio_objetivo}**")
+            st.markdown(f"**Margen de seguridad: {margen_seguridad:.0f}%**")
+
+with tabs[3]:
+    st.markdown("### 📈 Proyección y Recuperación")
+    render_summary_strip([
+        ("Ventas del año", f"{fmt_dinero(ventas_anual)} proyectadas durante los primeros 12 meses."),
+        ("Ganancia del año", f"{fmt_dinero(util_anual)} acumuladas durante el primer año."),
+        ("Recuperado al mes 30", f"{fmt_dinero(df_num.iloc[-1]['Recuperado'])} de la inversión total."),
+    ])
+
+    df_simple = pd.DataFrame([{
+        "Mes": p["Mes"],
+        "Ventas": p["Ventas"],
+        "Apertura": p["Apertura"],
+        "Te queda": p["Util. Neta"],
+        "Recuperado": p["Recuperado"],
+        "Saldo por recuperar": p["Saldo por recuperar"],
+        "ROI acumulado": p["ROI Acum."],
+    } for p in proyeccion])
+    st.dataframe(df_simple, use_container_width=True, hide_index=True)
+
+    st.markdown("#### Evolución mensual")
+    st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta", "Recuperado"]])
+
+    render_insight_panel(
+        "Resumen Final",
+        f"Cómo leer esta oportunidad en una sola vista para {modelo}",
+        f"Con una inversión total de {fmt_dinero(inversion_total)}, la unidad proyecta ventas estabilizadas de {fmt_dinero(ventas_totales)} y una utilidad estable de {fmt_dinero(utilidad_neta)}. La lectura de viabilidad se sostiene porque el proyecto enseña arranque, maduración y recuperación con una secuencia lógica.",
+        [
+            f"Mes 1 vende {fmt_dinero(ventas_mes_1)} y deja {fmt_dinero(utilidad_mes_1)}.",
+            retorno_visual["caption"],
+            f"Equilibrio operativo objetivo alrededor del mes {mes_equilibrio_objetivo}.",
+        ],
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # GENERADOR DE REPORTE PDF
@@ -1333,7 +2438,9 @@ def generar_reporte_pdf():
     modelo_info = f"""
     <b>Modelo de Franquicia:</b> {modelo}<br/>
     <b>Escenario Analizado:</b> {escenario}<br/>
-    <b>Inversión Requerida:</b> ${inversion:,}<br/>
+    <b>Inversión base:</b> ${inversion:,}<br/>
+    <b>Colchón operativo:</b> ${colchon_operativo:,}<br/>
+    <b>Inversión total a recuperar:</b> ${inversion_total:,}<br/>
     <b>Fecha de Análisis:</b> {pd.Timestamp.now().strftime('%d/%m/%Y')}<br/>
     """
     story.append(Paragraph(modelo_info, styles['Normal']))
@@ -1347,8 +2454,8 @@ def generar_reporte_pdf():
         "moderado"
     )
     lectura_arranque = (
-        "prudente" if arranque_inicial <= 0.45 else
-        "balanceado" if arranque_inicial <= 0.60 else
+        "prudente" if arranque_inicial_efectivo <= 0.55 else
+        "balanceado" if arranque_inicial_efectivo <= 0.68 else
         "fuerte"
     )
     lectura_rentabilidad = (
@@ -1365,13 +2472,14 @@ def generar_reporte_pdf():
     • Se está analizando una sucursal con <b>{horas} horas abiertas por día</b><br/>
     • El flujo estimado es <b>{nivel_trafico}</b>, con aproximadamente <b>{flujo_peatonal_dia:,.0f} peatones</b> y <b>{flujo_vehicular_dia:,.0f} vehículos</b> al día<br/>
     • La conversión estimada es de <b>{conversion_rate:.1f}% peatonal</b> y <b>{captacion_rate:.1f}% vehicular</b><br/>
+    • La inversión incorpora un <b>colchón operativo de ${colchon_operativo:,.0f}</b> para mantener una lectura comercial conservadora<br/>
     • El arranque proyectado es <b>{lectura_arranque}</b>, y el análisis sugiere <b>{lectura_rentabilidad}</b><br/><br/>
     
     <b>Qué debes revisar como cliente:</b><br/>
     • <b>Mes 1:</b> muestra el arranque realista, incluyendo el periodo de adaptación y gastos de apertura<br/>
     • <b>Mes estabilizado:</b> muestra cómo se comportaría la sucursal una vez que opere con mayor normalidad<br/>
     • <b>Primer año:</b> resume el impacto total del arranque, el crecimiento y la rentabilidad acumulada<br/>
-    • <b>Punto de equilibrio:</b> indica el nivel mínimo de venta mensual necesario para cubrir costos fijos<br/><br/>
+    • <b>Punto de equilibrio:</b> indica el nivel mínimo de venta mensual necesario para cubrir costos fijos y se acompaña del objetivo de equilibrio operativo en el <b>mes {mes_equilibrio_objetivo}</b><br/><br/>
     
     La intención es que puedas usar este reporte para tomar una decisión más informada, comparar escenarios y detectar 
     qué variables tienen mayor impacto en la rentabilidad del proyecto. Si ajustas tráfico, horario, ticket o inversión, 
@@ -1384,7 +2492,7 @@ def generar_reporte_pdf():
     story.append(Paragraph("🧭 Lectura simple del escenario", heading_style))
     resumen_simple = f"""
     <b>En palabras simples:</b><br/>
-    Hoy este análisis estima que con una inversión de <b>${inversion:,.0f}</b>, una operación de <b>{horas} horas diarias</b> 
+    Hoy este análisis estima que con una inversión total de <b>${inversion_total:,.0f}</b>, una operación de <b>{horas} horas diarias</b> 
     y un ticket promedio de <b>${ticket:,.0f}</b>, la sucursal puede vender alrededor de <b>${ventas_mes_1:,.0f}</b> en su primer mes 
     y acercarse a <b>${ventas_totales:,.0f}</b> mensuales cuando ya opere de forma estabilizada.<br/><br/>
     
@@ -1463,15 +2571,19 @@ def generar_reporte_pdf():
     # Tabla de métricas principales (mejorada)
     metricas_data = [
         ['MÉTRICA CLAVE', 'RESULTADO'],
-        ['Tickets mensuales estabilizados', f'{clientes_mes:,} tickets'],
+        ['Tickets mensuales estabilizados', f'{clientes_mes_display:,} tickets'],
+        ['Inversión total a recuperar', f'${inversion_total:,.0f}'],
+        ['Colchón operativo', f'${colchon_operativo:,.0f}'],
         ['Ingresos mes 1', f'${ventas_mes_1:,.0f}'],
         ['Utilidad neta mes 1', f'${utilidad_mes_1:,.0f}'],
         ['Ingresos estabilizados', f'${ventas_totales:,.0f}'],
         ['Utilidad neta estabilizada', f'${utilidad_neta:,.0f}'],
         ['Margen de utilidad', f'{margen_neto*100:.1f}%'],
         ['ROI primer año', f'{roi_anual*100:.1f}%'],
-        ['Período de recuperación', meses_recuperacion_fmt],
+        ['Período de recuperación', retorno_reporte],
+        ['Equilibrio objetivo', f'Mes {mes_equilibrio_objetivo}'],
         ['Punto de equilibrio', f'${ventas_be:,.0f}/mes'],
+        ['% de equilibrio', f'{porcentaje_equilibrio:.1f}% de la venta estable'],
         ['Ingresos primer año', f'${ventas_anual:,.0f}'],
         ['Utilidad primer año', f'${util_anual:,.0f}'],
     ]
@@ -1491,6 +2603,72 @@ def generar_reporte_pdf():
     
     story.append(metricas_table)
     story.append(Spacer(1, 20))
+
+    story.append(Paragraph("🧭 Los 3 escenarios considerados", heading_style))
+    story.append(Paragraph(
+        f"Se comparan los escenarios Conservador, Medio y Alto. "
+        f"El escenario seleccionado para esta revisión es <b>{escenario}</b>.",
+        styles['Normal']
+    ))
+    story.append(Spacer(1, 10))
+
+    escenarios_data = [[
+        'ESCENARIO',
+        'SEL.',
+        'PERFIL',
+        'EQUILIBRIO',
+        'META RETORNO',
+        'LECTURA RETORNO',
+        'ROI AÑO 1',
+        'ESTATUS',
+    ]]
+    for fila in resumen_escenarios:
+        escenarios_data.append([
+            fila["Escenario"],
+            fila["Seleccionado"],
+            fila["Perfil"],
+            fila["Equilibrio meta"],
+            fila["Meta retorno"],
+            fila["Lectura retorno"],
+            fila["ROI año 1"],
+            fila["Estatus"],
+        ])
+
+    escenarios_table = Table(
+        escenarios_data,
+        colWidths=[1.0*inch, 0.45*inch, 0.95*inch, 0.85*inch, 1.1*inch, 1.15*inch, 0.8*inch, 1.0*inch]
+    )
+    escenarios_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.239, 0.478)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.98, 0.98, 1.0)),
+        ('GRID', (0, 0), (-1, -1), 1, colors.darkgray),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+    ])
+    for idx, fila in enumerate(resumen_escenarios, start=1):
+        if fila["Seleccionado"] == "Sí":
+            escenarios_style.add('BACKGROUND', (0, idx), (-1, idx), colors.Color(0.90, 0.97, 0.90))
+            escenarios_style.add('FONTNAME', (0, idx), (-1, idx), 'Helvetica-Bold')
+    escenarios_table.setStyle(escenarios_style)
+    story.append(escenarios_table)
+    story.append(Spacer(1, 20))
+
+    if not cumple_estandar_comercial and meta_comercial["alcanzable"]:
+        story.append(Paragraph("🧱 Ruta para entrar al estándar", heading_style))
+        ruta_estandar_html = f"""
+        <b>Meta de ventas:</b> {meta_ventas_texto} al mes, equivalente a subir {faltante_ventas_texto} frente al nivel actual.<br/>
+        <b>Meta de utilidad:</b> {meta_utilidad_texto} al mes como run-rate estabilizado.<br/>
+        <b>Meta de tickets:</b> {meta_tickets_texto} al mes con ticket blended de referencia de {ticket_blended_meta_texto}.<br/>
+        <b>Ruta por inversión:</b> bajar el total a recuperar hacia {meta_inversion_texto}, es decir recortar cerca de {recorte_inversion_texto}.<br/>
+        <b>Ruta por gastos fijos:</b> bajar la estructura hacia {gasto_fijo_meta_texto} al mes, equivalente a recortar aproximadamente {reduccion_gf_texto}.
+        """
+        story.append(Paragraph(ruta_estandar_html, styles['Normal']))
+        story.append(Spacer(1, 16))
     
     # Estructura de ingresos (MÁS VISUAL)
     story.append(Paragraph("💰 Estructura de Ingresos Mensuales Estabilizados", heading_style))
@@ -1565,27 +2743,27 @@ def generar_reporte_pdf():
     # Evaluación de la oportunidad (MUY VENDEDOR)
     story.append(Paragraph("🏆 Evaluación de la Oportunidad", heading_style))
     
-    if util_anual > 0 and meses_recuperacion < 30:
+    if cumple_estandar_comercial:
         eval_color = colors.Color(0, 0.5, 0)  # Verde
         conclusion = f"""
         <b>✅ OPORTUNIDAD EXCELENTE</b><br/><br/>
         
         <b>Arranque Controlado:</b> El proyecto soporta el periodo inicial y cierra con utilidad positiva en el primer año<br/>
-        <b>Recuperación Rápida:</b> Inversión recuperada en {meses_recuperacion_fmt}<br/>
+        <b>Recuperación Comercial:</b> {retorno_reporte_detalle}<br/>
         <b>ROI Atractivo:</b> {roi_anual*100:.1f}% en el primer año, ya considerando rampa de arranque<br/>
         <b>Mercado Estable:</b> Sector salud con demanda constante y creciente<br/><br/>
         
         <b>RECOMENDACIÓN:</b> Proceder con la inversión. Los números demuestran 
         una oportunidad sólida con riesgo controlado y potencial de crecimiento.
         """
-    elif util_anual > 0:
+    elif meta_comercial["alcanzable"]:
         eval_color = colors.Color(0.7, 0.7, 0)  # Amarillo
         conclusion = f"""
         <b>⚠️ OPORTUNIDAD VIABLE CON CONSIDERACIONES</b><br/><br/>
         
-        <b>Rentabilidad Positiva:</b> El primer año es positivo, pero con recuperación más lenta<br/>
-        <b>Recuperación Moderada:</b> {meses_recuperacion_fmt} para recuperar inversión<br/>
-        <b>Potencial de Mejora:</b> Optimizaciones operativas pueden acelerar retornos<br/><br/>
+        <b>Meta Comercial:</b> {retorno_reporte_detalle}<br/>
+        <b>Ventas Objetivo:</b> Llevar la venta estable hacia {meta_ventas_texto} mensuales<br/>
+        <b>Potencial de Mejora:</b> Optimizaciones operativas pueden llevar la unidad de regreso al estándar objetivo<br/><br/>
         
         <b>RECOMENDACIÓN:</b> Evaluar mejoras en ubicación o eficiencias operativas 
         para acelerar la recuperación. Base sólida con oportunidades de optimización.
@@ -1662,7 +2840,7 @@ st.markdown("### 📄 Descargar Reporte")
 
 col_pdf1, col_pdf2 = st.columns([1, 3])
 with col_pdf1:
-    if st.button("📥 Generar PDF", type="primary"):
+    if st.button("📥 Generar PDF", type="primary", disabled=not cumple_estandar_comercial):
         with st.spinner("Generando reporte PDF..."):
             pdf_bytes = generar_reporte_pdf()
             st.download_button(
@@ -1672,12 +2850,19 @@ with col_pdf1:
                 mime="application/pdf"
             )
 with col_pdf2:
-    st.caption("Genera un reporte ejecutivo profesional para presentar esta oportunidad de inversión a socios, inversionistas o para tu análisis detallado.")
+    if cumple_estandar_comercial:
+        st.caption("Genera un reporte ejecutivo profesional para revisar esta oportunidad con el franquiciatario, socios o para análisis interno.")
+    else:
+        st.warning(
+            "El PDF se habilita solo cuando la corrida entra en el estándar comercial "
+            f"del escenario: retorno <= {meta_escenario_actual['payback_max']:.0f} meses "
+            f"y equilibrio <= mes {meta_escenario_actual['equilibrio_mes']}."
+        )
 
 # Recomendaciones útiles (tono constructivo)
-if meses_recuperacion > 24:
+if np.isfinite(meses_recuperacion) and meses_recuperacion > 24:
     st.info("💡 **Oportunidad de optimización:** Con mejoras en ubicación o eficiencias operativas, puedes acelerar la recuperación de tu inversión.")
 if clientes_mes < clientes_be:
-    st.warning(f"📊 **Análisis de tráfico:** Para alcanzar el punto de equilibrio necesitas {int(clientes_be):,} clientes vs {clientes_mes:,} proyectados. Considera estrategias de marketing local.")
+    st.warning(f"📊 **Análisis de tráfico:** Para alcanzar el punto de equilibrio necesitas {clientes_be_display:,} clientes vs {clientes_mes_display:,} proyectados. Considera estrategias de marketing local.")
 if margen_neto < 0.05 and utilidad_neta > 0:
     st.info("🎯 **Potencial de mejora:** Los márgenes pueden optimizarse mejorando la mezcla de productos o negociando mejores condiciones con proveedores.")
