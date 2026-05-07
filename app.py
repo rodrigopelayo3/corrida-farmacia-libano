@@ -650,6 +650,8 @@ BANDAS_RETORNO = {
     "Medio": {"etiqueta": "Intermedio", "payback_min": 20.0, "payback_max": 26.0, "equilibrio_mes": 7},
     "Alto": {"etiqueta": "Óptimo", "payback_min": 18.0, "payback_max": 19.0, "equilibrio_mes": 6},
 }
+MARGEN_OBJETIVO_COMERCIAL = "10%-14%"
+EQUILIBRIO_OBJETIVO_COMERCIAL = "Mes 6-8"
 
 MINIMOS_MODELO = {
     "🏪 Mini": {"flujo": 35, "flujo_vehicular": 50, "ticket": 75, "horas": 10},
@@ -854,12 +856,11 @@ def construir_retorno_visual(meses_recuperacion, escenario, cumple_estandar):
     banda_corta = f"{meta['payback_min']:.0f}-{meta['payback_max']:.0f}m"
     banda_larga = f"{meta['payback_min']:.0f}-{meta['payback_max']:.0f} meses"
     if cumple_estandar and np.isfinite(meses_recuperacion):
-        retorno_real = f"{meses_recuperacion:.1f} meses"
         return {
-            "hero": f"{meses_recuperacion:.1f}m",
-            "metrica": retorno_real,
-            "resumen": f"{retorno_real}, dentro de la banda objetivo {banda_larga}.",
-            "caption": f"Recuperación ya dentro de la banda comercial {banda_larga}.",
+            "hero": banda_corta,
+            "metrica": banda_larga,
+            "resumen": f"Dentro de la banda objetivo {banda_larga}.",
+            "caption": f"Recuperación estimada dentro de la banda comercial {banda_larga}.",
         }
 
     return {
@@ -1849,6 +1850,8 @@ retorno_visual = construir_retorno_visual(meses_recuperacion, escenario, cumple_
 clientes_mes_display = int(np.ceil(clientes_mes))
 clientes_be_display = int(np.ceil(clientes_be)) if np.isfinite(clientes_be) else 0
 techo_sobre_estable_pct = max((techo_maduro_factor - 1) * 100, 0)
+utilidad_operativa_lectura = "Positiva" if utilidad_mes_estable > 0 else "En maduración"
+nivel_equilibrio_texto = f"{porcentaje_equilibrio:.0f}% de la venta estable"
 
 resumen_escenarios = []
 for escenario_pdf in ["Conservador", "Medio", "Alto"]:
@@ -1889,7 +1892,7 @@ for escenario_pdf in ["Conservador", "Medio", "Alto"]:
             if resultado_escenario["cumple_estandar_comercial"] and np.isfinite(resultado_escenario["meses_recuperacion_real"])
             else "Requiere ajuste"
         ),
-        "ROI año 1": f"{resultado_escenario['roi_anual'] * 100:.1f}%",
+        "Margen objetivo": MARGEN_OBJETIVO_COMERCIAL,
         "Ventas estables": f"${resultado_escenario['ventas_totales']:,.0f}",
         "Estatus": "Dentro del estándar" if resultado_escenario["cumple_estandar_comercial"] else "Requiere ajuste",
     })
@@ -1925,7 +1928,7 @@ retorno_real_texto = retorno_visual["caption"]
 banda_objetivo_texto = f"{meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses"
 retorno_reporte = meses_recuperacion_fmt if cumple_estandar_comercial else f"Meta comercial {banda_objetivo_texto}"
 retorno_reporte_detalle = (
-    f"Recuperación ya dentro de la banda comercial {banda_objetivo_texto}."
+    f"Recuperación estimada dentro de la banda comercial {banda_objetivo_texto}."
     if cumple_estandar_comercial
     else f"Objetivo comercial del escenario: {banda_objetivo_texto}. Hoy la corrida requiere ajuste para volver a ese rango."
 )
@@ -1940,14 +1943,14 @@ gasto_fijo_meta_texto = fmt_dinero(meta_comercial["gasto_fijo_meta"]) if meta_co
 reduccion_gf_texto = fmt_dinero(meta_comercial["reduccion_gastos_fijos_requerida"]) if meta_comercial["reduccion_gastos_fijos_requerida"] else fmt_dinero(0)
 ticket_blended_meta_texto = fmt_dinero(meta_comercial["ticket_blended_minimo"]) if meta_comercial["ticket_blended_minimo"] else "N/D"
 incremento_ticket_texto = fmt_dinero(meta_comercial["incremento_ticket_blended"]) if meta_comercial["incremento_ticket_blended"] else fmt_dinero(0)
-retorno_principal_label = "Retorno estimado" if cumple_estandar_comercial else "Banda objetivo Líbano"
+retorno_principal_label = "Recuperación estimada"
 accion_ventas = (
     f"Llevar la venta estable hacia {meta_ventas_texto} al mes."
     if meta_comercial["alcanzable"]
     else "Revisar ubicación, mezcla y costos antes de volver a evaluar la sucursal."
 )
 accion_utilidad = (
-    f"Sostener una utilidad estable cercana a {meta_utilidad_texto}."
+    f"Sostener utilidad operativa positiva dentro del margen objetivo {MARGEN_OBJETIVO_COMERCIAL}."
     if meta_comercial["alcanzable"]
     else "Rearmar la estructura operativa con una base de costos más ligera."
 )
@@ -1962,8 +1965,8 @@ palancas_mejora = [
         f"Con el desempeño actual, el total a recuperar debería quedar alrededor de {meta_inversion_texto}. Eso implica recortar cerca de {recorte_inversion_texto} entre CAPEX, inventario inicial o gastos de apertura."
     ),
     (
-        "Subir utilidad estabilizada",
-        f"El caso necesita acercarse a {meta_utilidad_texto} mensuales. Hoy está en {fmt_dinero(utilidad_mes_estable)}, así que faltan aproximadamente {fmt_dinero(meta_comercial['mejora_utilidad_requerida'])} al mes."
+        "Fortalecer margen operativo",
+        f"El caso necesita llevar la operación a utilidad positiva y sostenerla dentro del margen objetivo {MARGEN_OBJETIVO_COMERCIAL}. La ruta puede venir por ticket, mezcla, tráfico o gastos fijos."
     ),
     (
         "Aligerar gastos fijos",
@@ -1986,19 +1989,19 @@ st.markdown(
                 <div class="sales-stat-caption">{retorno_real_texto}</div>
             </div>
             <div class="sales-stat">
-                <div class="sales-stat-label">Ventas Estables</div>
-                <div class="sales-stat-value">{fmt_dinero(ventas_mes_estable)}</div>
-                <div class="sales-stat-caption">Run-rate mensual defendible para la conversación comercial.</div>
+                <div class="sales-stat-label">Equilibrio Objetivo</div>
+                <div class="sales-stat-value">{EQUILIBRIO_OBJETIVO_COMERCIAL}</div>
+                <div class="sales-stat-caption">Ventana comercial para estabilizar la operación sin prometer un mes exacto.</div>
             </div>
             <div class="sales-stat">
-                <div class="sales-stat-label">Utilidad Estable</div>
-                <div class="sales-stat-value">{fmt_dinero(utilidad_mes_estable)}</div>
-                <div class="sales-stat-caption">Lo que deja la unidad al estabilizarse, ya considerando costos operativos.</div>
+                <div class="sales-stat-label">Utilidad Operativa Esperada</div>
+                <div class="sales-stat-value">{utilidad_operativa_lectura}</div>
+                <div class="sales-stat-caption">Lectura cualitativa al estabilizarse; no representa garantía de utilidad.</div>
             </div>
             <div class="sales-stat">
-                <div class="sales-stat-label">ROI Año 1</div>
-                <div class="sales-stat-value">{roi_anual * 100:.0f}%</div>
-                <div class="sales-stat-caption">Impacto del arranque, apertura y crecimiento durante el primer año.</div>
+                <div class="sales-stat-label">Margen Objetivo</div>
+                <div class="sales-stat-value">{MARGEN_OBJETIVO_COMERCIAL}</div>
+                <div class="sales-stat-caption">Banda comercial de margen operativo esperada al estabilizarse.</div>
             </div>
         </div>
     </div>
@@ -2070,6 +2073,10 @@ utilidad_abarrotes_display = max(utilidad_abarrotes_raw, 0)
 capital_trabajo_abarrotes = max(-utilidad_abarrotes_raw, 0)
 utilidad_operativa_display = max(utilidad_productos_raw + utilidad_consultas_recetas_raw + utilidad_abarrotes_raw, 0)
 capital_trabajo_operativo = max(-(utilidad_productos_raw + utilidad_consultas_recetas_raw + utilidad_abarrotes_raw), 0)
+lectura_productos = "Positiva" if utilidad_productos_raw > 0 else "Capital de trabajo"
+lectura_consultas_recetas = "Positiva" if utilidad_consultas_recetas_raw > 0 else "Capital de trabajo"
+lectura_abarrotes = "Positiva" if utilidad_abarrotes_raw > 0 else "Capital de trabajo"
+lectura_operativa_total = "Positiva" if utilidad_operativa_display > 0 else "Capital de trabajo"
 
 productos_operativos_df = pd.DataFrame([{
     "Gastos fijos": fmt_dinero(gastos_fijos),
@@ -2084,7 +2091,7 @@ productos_operativos_df = pd.DataFrame([{
     "Ticket promedio": fmt_dinero(ticket),
     "Ventas productos": fmt_dinero(ventas_farmacia),
     "Costo resurtido": fmt_dinero(costo_resurtido_farmacia),
-    "Utilidad productos": fmt_dinero(utilidad_productos_display),
+    "Lectura productos": lectura_productos,
     "Capital trabajo": fmt_dinero(capital_trabajo_productos),
 }])
 
@@ -2106,7 +2113,7 @@ consultas_recetas_df = pd.DataFrame([{
     "Precio receta": fmt_dinero(ticket_receta),
     "Ventas recetas": fmt_dinero(ventas_recetas),
     "Resurtido recetas": fmt_dinero(costo_resurtido_recetas),
-    "Utilidad consultas y recetas": fmt_dinero(utilidad_consultas_recetas_display),
+    "Lectura consultas y recetas": lectura_consultas_recetas,
     "Capital trabajo": fmt_dinero(capital_trabajo_consultas_recetas),
 }])
 
@@ -2114,7 +2121,7 @@ resumen_operativo_rows = [
     {
         "Línea": "Productos",
         "Ventas/mes": fmt_dinero(ventas_farmacia),
-        "Utilidad/mes": fmt_dinero(utilidad_productos_display),
+        "Lectura utilidad": lectura_productos,
         "Capital trabajo": fmt_dinero(capital_trabajo_productos),
     }
 ]
@@ -2122,20 +2129,20 @@ if m["consultorio"]:
     resumen_operativo_rows.append({
         "Línea": "Consultas y recetas",
         "Ventas/mes": fmt_dinero(ventas_consultas_recetas),
-        "Utilidad/mes": fmt_dinero(utilidad_consultas_recetas_display),
+        "Lectura utilidad": lectura_consultas_recetas,
         "Capital trabajo": fmt_dinero(capital_trabajo_consultas_recetas),
     })
 if m["abarrotes"]:
     resumen_operativo_rows.append({
         "Línea": "Conveniencia",
         "Ventas/mes": fmt_dinero(ventas_abarrotes),
-        "Utilidad/mes": fmt_dinero(utilidad_abarrotes_display),
+        "Lectura utilidad": lectura_abarrotes,
         "Capital trabajo": fmt_dinero(capital_trabajo_abarrotes),
     })
 resumen_operativo_rows.append({
     "Línea": "Total mensual",
     "Ventas/mes": fmt_dinero(ventas_totales),
-    "Utilidad/mes": fmt_dinero(utilidad_operativa_display),
+    "Lectura utilidad": lectura_operativa_total,
     "Capital trabajo": fmt_dinero(capital_trabajo_operativo),
 })
 resumen_operativo_df = pd.DataFrame(resumen_operativo_rows)
@@ -2193,10 +2200,10 @@ with tabs[0]:
         render_insight_panel(
             "Estatus de Viabilidad",
             "Dentro del estándar Líbano",
-            f"La corrida ya cae en una banda comercial defendible. Recupera la inversión total en {meses_recuperacion_fmt} y proyecta un ROI del {roi_anual*100:.0f}% en el primer año.",
+            f"La corrida ya cae en una banda comercial defendible: recuperación estimada {retorno_visual['metrica']}, equilibrio objetivo {EQUILIBRIO_OBJETIVO_COMERCIAL} y margen objetivo {MARGEN_OBJETIVO_COMERCIAL}.",
             [
-                f"Mes 1 deja aproximadamente {fmt_dinero(utilidad_mes_1)}.",
-                f"La unidad estabilizada deja alrededor de {fmt_dinero(utilidad_mes_estable)} al mes.",
+                "El arranque se explica como capital de trabajo y maduración operativa.",
+                f"Utilidad operativa esperada: {utilidad_operativa_lectura.lower()} al estabilizarse.",
                 "La base operativa ya se sostiene con los parámetros actuales.",
             ],
         )
@@ -2207,7 +2214,7 @@ with tabs[0]:
             "La mezcla actual todavía no entra en la banda objetivo, pero la app ya señala el mínimo operativo para volverla defendible.",
             [
                 f"Ventas estables mínimas: {fmt_dinero(meta_comercial['ventas_estables_minimas'])} al mes.",
-                f"Utilidad estable mínima: {fmt_dinero(meta_comercial['utilidad_estable_minima'])} al mes.",
+                f"Utilidad operativa esperada: {utilidad_operativa_lectura.lower()} al estabilizarse.",
                 f"Tickets mensuales mínimos: {meta_comercial['tickets_mes_minimos']:,}.",
             ],
         )
@@ -2224,9 +2231,9 @@ with tabs[0]:
         )
 
     render_summary_strip([
-        ("Lectura de retorno", retorno_visual["resumen"]),
-        ("Equilibrio operativo", f"Punto de equilibrio en {fmt_dinero(ventas_be)} y meta comercial de equilibrio al mes {mes_equilibrio_objetivo}."),
-        ("Ruta de viabilidad", "Primero valida demanda y mezcla, después utilidad estabilizada y al final recuperación dentro del estándar."),
+        ("Recuperación estimada", retorno_visual["resumen"]),
+        ("Equilibrio objetivo", f"{EQUILIBRIO_OBJETIVO_COMERCIAL}; nivel de equilibrio actual: {nivel_equilibrio_texto}."),
+        ("Ruta de viabilidad", f"Primero valida demanda y mezcla, después margen objetivo {MARGEN_OBJETIVO_COMERCIAL} y recuperación dentro del estándar."),
     ])
 
     st.markdown("### 📊 Números Clave")
@@ -2238,26 +2245,26 @@ with tabs[0]:
         st.metric("💵 Ventas mes 1", f"${ventas_mes_1:,.0f}")
         st.caption("Ya con rampa de arranque")
     with c3:
-        st.metric("💰 Utilidad mes 1", f"${utilidad_mes_1:,.0f}")
-        st.caption("Después de apertura y operación")
+        st.metric("💰 Utilidad operativa", utilidad_operativa_lectura)
+        st.caption("Esperada al estabilizarse")
 
     c4, c5, c6 = st.columns(3)
     with c4:
         st.metric("📈 Ventas estabilizadas", f"${ventas_mes_estable:,.0f}")
         st.caption("Mes maduro sin rampa")
     with c5:
-        st.metric("🎯 Punto de equilibrio", f"${ventas_be:,.0f}")
-        st.caption(f"{porcentaje_equilibrio:.0f}% de tus ventas estabilizadas")
+        st.metric("🎯 Equilibrio objetivo", EQUILIBRIO_OBJETIVO_COMERCIAL)
+        st.caption(nivel_equilibrio_texto)
     with c6:
-        st.metric("📈 ROI Año 1", f"{roi_anual*100:.0f}%")
-        st.caption("Ya incluye meses flojos y colchón")
+        st.metric("📈 Margen objetivo", MARGEN_OBJETIVO_COMERCIAL)
+        st.caption("Banda comercial de referencia")
 
     c7, c8, c9 = st.columns(3)
     with c7:
-        st.metric("💼 Utilidad estabilizada", f"${utilidad_mes_estable:,.0f}")
-        st.caption("Run-rate operativo esperado")
+        st.metric("💼 Nivel de equilibrio", f"{porcentaje_equilibrio:.0f}%")
+        st.caption("De la venta estable")
     with c8:
-        st.metric("⏱️ Recuperación" if cumple_estandar_comercial else "🎯 Banda objetivo", retorno_visual["metrica"])
+        st.metric("⏱️ Recuperación estimada", retorno_visual["metrica"])
         st.caption(f"Estándar Líbano: {meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses")
     with c9:
         st.metric("💸 Recuperado al mes 30", f"${df_num.iloc[-1]['Recuperado']:,.0f}")
@@ -2267,7 +2274,7 @@ with tabs[0]:
         st.markdown("### 🧱 Estándar mínimo operativo")
         render_summary_strip([
             ("Meta ventas/mes", f"{fmt_dinero(meta_comercial['ventas_estables_minimas'])} para volver al estándar."),
-            ("Meta utilidad/mes", f"{fmt_dinero(meta_comercial['utilidad_estable_minima'])} como run-rate mínimo."),
+            ("Utilidad esperada", f"{utilidad_operativa_lectura} al estabilizarse; margen objetivo {MARGEN_OBJETIVO_COMERCIAL}."),
             ("Meta tickets/mes", f"{meta_comercial['tickets_mes_minimos']:,} tickets con la mezcla actual."),
         ])
         render_insight_panel(
@@ -2292,12 +2299,12 @@ with tabs[0]:
                 <div class="sales-section-title">Lectura compartida</div>
                 <h4>Cómo revisar esta sucursal en mesa</h4>
                 <p>
-                    Empieza por la demanda y la mezcla del formato, sigue con la utilidad estabilizada y cierra con el tiempo de recuperación.
+                    Empieza por la demanda y la mezcla del formato, sigue con la lectura operativa y cierra con el tiempo de recuperación.
                     La idea es que vendedor y franquiciatario lean la misma historia económica con orden y sin exagerar supuestos.
                 </p>
                 <ul class="sales-checklist">
                     <li>Primero: demanda local, tráfico y ticket.</li>
-                    <li>Segundo: ventas estabilizadas, utilidad y equilibrio.</li>
+                    <li>Segundo: ventas estabilizadas, lectura operativa y equilibrio.</li>
                     <li>Tercero: inversión total, rampa de arranque y recuperación.</li>
                 </ul>
             </div>
@@ -2384,7 +2391,7 @@ with tabs[3]:
     st.markdown("### 💸 Economía del Negocio")
     render_summary_strip([
         ("Punto de equilibrio", f"{fmt_dinero(ventas_be)} al mes para cubrir la estructura fija."),
-        ("Margen de seguridad", f"{margen_seguridad:.0f}% de holgura frente a la venta estabilizada."),
+        ("Margen objetivo", f"{MARGEN_OBJETIVO_COMERCIAL} como banda comercial de referencia."),
         ("Colchón operativo", f"{fmt_dinero(colchon_operativo)} incorporado para una lectura comercial más sólida."),
     ])
 
@@ -2432,9 +2439,9 @@ with tabs[3]:
         render_insight_panel(
             "Lectura Financiera",
             "Lo importante no es solo vender más, sino vender con margen",
-            f"La utilidad estable proyectada ronda {fmt_dinero(utilidad_mes_estable)} y el equilibrio exige {porcentaje_equilibrio:.0f}% de la venta estable. Eso permite explicar de forma muy clara cuándo la sucursal empieza a dejar dinero de verdad.",
+            f"La utilidad operativa esperada se presenta como {utilidad_operativa_lectura.lower()} al estabilizarse, con margen objetivo {MARGEN_OBJETIVO_COMERCIAL}. El equilibrio exige {nivel_equilibrio_texto}.",
             [
-                f"Mes de equilibrio objetivo: {mes_equilibrio_objetivo}.",
+                f"Equilibrio objetivo comercial: {EQUILIBRIO_OBJETIVO_COMERCIAL}.",
                 f"Gasto extra de apertura: {fmt_dinero(gasto_lanzamiento)} por mes durante los primeros 3 meses.",
                 f"Total a recuperar: {fmt_dinero(inversion_total)} incluyendo colchón.",
             ],
@@ -2467,8 +2474,8 @@ with tabs[4]:
     st.markdown("### 📈 Proyección y Recuperación")
     render_summary_strip([
         ("Ventas del año", f"{fmt_dinero(ventas_anual)} proyectadas durante los primeros 12 meses."),
-        ("Ganancia del año", f"{fmt_dinero(util_anual)} acumuladas durante el primer año."),
-        ("Tope operativo", f"En el mes {mes_tope_operativo or MESES_PROYECCION} la unidad ronda {fmt_dinero(ventas_tope)} en ventas y {fmt_dinero(utilidad_tope)} de utilidad al mes."),
+        ("Utilidad operativa", f"{utilidad_operativa_lectura} al estabilizarse; margen objetivo {MARGEN_OBJETIVO_COMERCIAL}."),
+        ("Tope operativo", f"En el mes {mes_tope_operativo or MESES_PROYECCION} la unidad alcanza su techo de ventas y deja de crecer."),
     ])
     st.caption(
         f"Cada mes deriva de un escenario {escenario.lower()} con {flujo:,} peatones/hora, "
@@ -2479,25 +2486,29 @@ with tabs[4]:
         "La columna `Capital de trabajo` agrupa el soporte temporal del arranque y cualquier faltante del mes mientras la sucursal madura."
     )
 
-    df_simple = pd.DataFrame([{
-        "Mes": p["Mes"],
-        "Escenario": p["Escenario"],
-        "Peatones": p["Peatones"],
-        "Vehículos": p["Vehículos"],
-        "Conv. peat.": p["Conv. peat."],
-        "Capt. veh.": p["Capt. veh."],
-        "Tickets": p["Tickets"],
-        "Ventas": p["Ventas"],
-        "Capital de trabajo": p["Capital de trabajo"],
-        "Te queda": p["Util. Neta"],
-        "Recuperado": p["Recuperado"],
-        "Saldo por recuperar": p["Saldo por recuperar"],
-        "ROI acumulado": p["ROI Acum."],
-    } for p in proyeccion])
+    df_simple_rows = []
+    for idx, p in enumerate(proyeccion):
+        utilidad_mes_num = df_num.iloc[idx]["Util. Neta"] if idx < len(df_num) else 0
+        df_simple_rows.append({
+            "Mes": p["Mes"],
+            "Escenario": p["Escenario"],
+            "Peatones": p["Peatones"],
+            "Vehículos": p["Vehículos"],
+            "Conv. peat.": p["Conv. peat."],
+            "Capt. veh.": p["Capt. veh."],
+            "Tickets": p["Tickets"],
+            "Ventas": p["Ventas"],
+            "Capital de trabajo": p["Capital de trabajo"],
+            "Lectura operativa": "Positiva" if utilidad_mes_num > 0 else "Capital de trabajo",
+            "Recuperado": p["Recuperado"],
+            "Saldo por recuperar": p["Saldo por recuperar"],
+            "Avance recuperación": p["ROI Acum."],
+        })
+    df_simple = pd.DataFrame(df_simple_rows)
     st.dataframe(df_simple, use_container_width=True, hide_index=True)
 
     st.markdown("#### Evolución mensual")
-    st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta", "Recuperado"]])
+    st.line_chart(df_num.set_index("Mes")[["Ventas", "Recuperado"]])
     st.caption(
         f"La proyección ya considera un techo operativo. "
         f"A partir del mes {(mes_tope_operativo or MESES_PROYECCION) + 1}, la sucursal deja de crecer y se estabiliza."
@@ -2506,11 +2517,11 @@ with tabs[4]:
     render_insight_panel(
         "Resumen Final",
         f"Cómo leer esta oportunidad en una sola vista para {modelo}",
-        f"Con una inversión total de {fmt_dinero(inversion_total)}, la unidad proyecta ventas estabilizadas de {fmt_dinero(ventas_totales)} y una utilidad estable de {fmt_dinero(utilidad_neta)}. La lectura de viabilidad se sostiene porque el proyecto enseña arranque, maduración y recuperación con una secuencia lógica.",
+        f"Con una inversión total de {fmt_dinero(inversion_total)}, la unidad muestra recuperación estimada {retorno_visual['metrica']}, equilibrio objetivo {EQUILIBRIO_OBJETIVO_COMERCIAL} y margen objetivo {MARGEN_OBJETIVO_COMERCIAL}. La lectura de viabilidad se sostiene porque enseña arranque, maduración y recuperación con una secuencia lógica.",
         [
-            f"Mes 1 vende {fmt_dinero(ventas_mes_1)} y deja {fmt_dinero(utilidad_mes_1)}.",
+            f"Mes 1 se lee como etapa de arranque y capital de trabajo.",
             retorno_visual["caption"],
-            f"Equilibrio operativo objetivo alrededor del mes {mes_equilibrio_objetivo}.",
+            f"Utilidad operativa esperada: {utilidad_operativa_lectura.lower()} al estabilizarse.",
         ],
     )
 
@@ -2661,7 +2672,7 @@ def generar_reporte_pdf():
     lectura_desc = f"""
     Este documento fue preparado para ayudarte a evaluar de forma clara el potencial financiero de la sucursal propuesta. 
     La corrida traduce tus supuestos de <b>inversión inicial</b>, <b>tráfico</b>, <b>horario de operación</b>, 
-    <b>ticket promedio</b> y <b>estructura de costos</b> en una proyección de ventas, utilidad y recuperación de inversión.<br/><br/>
+    <b>ticket promedio</b> y <b>estructura de costos</b> en una proyección de ventas, capital de trabajo y recuperación de inversión.<br/><br/>
 
     <b>Con los datos capturados en esta corrida:</b><br/>
     • Se está analizando una sucursal con <b>{horas} horas abiertas por día</b><br/>
@@ -2765,9 +2776,11 @@ def generar_reporte_pdf():
 
     metricas_data = [
         ['INDICADOR', 'LECTURA'],
-        ['Equilibrio objetivo', f'Mes {mes_equilibrio_objetivo}'],
-        ['Utilidad esperada', 'Positiva al estabilizarse' if utilidad_neta > 0 else 'Requiere maduración operativa'],
-        ['Nivel de equilibrio', f'{porcentaje_equilibrio:.0f}% de la venta estable'],
+        ['Recuperación estimada', retorno_visual["metrica"]],
+        ['Equilibrio objetivo', EQUILIBRIO_OBJETIVO_COMERCIAL],
+        ['Utilidad operativa esperada', utilidad_operativa_lectura],
+        ['Margen objetivo', MARGEN_OBJETIVO_COMERCIAL],
+        ['Nivel de equilibrio', nivel_equilibrio_texto],
     ]
     
     metricas_table = Table(
@@ -2796,7 +2809,7 @@ def generar_reporte_pdf():
 
     story.append(Paragraph("Cómo se construyen las ventas", heading_style))
     story.append(Paragraph(
-        "Este desglose muestra la conversión operativa desde flujo, tickets y ticket promedio hasta ventas y utilidad mensual.",
+        "Este desglose muestra la conversión operativa desde flujo, tickets y ticket promedio hasta ventas y lectura operativa mensual.",
         styles['Normal']
     ))
     story.append(Spacer(1, 8))
@@ -2836,13 +2849,13 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 6))
 
     productos_resultado_data = [
-        ['TICKET', 'VENTAS PRODUCTOS', 'COSTO RESURTIDO', 'GASTO VARIABLE', 'UTILIDAD PRODUCTOS', 'CAPITAL TRABAJO'],
+        ['TICKET', 'VENTAS PRODUCTOS', 'COSTO RESURTIDO', 'GASTO VARIABLE', 'LECTURA PRODUCTOS', 'CAPITAL TRABAJO'],
         [
             fmt_dinero(ticket),
             fmt_dinero(ventas_farmacia),
             fmt_dinero(costo_resurtido_farmacia),
             fmt_dinero(gasto_variable_farmacia),
-            fmt_dinero(utilidad_productos_display),
+            lectura_productos,
             fmt_dinero(capital_trabajo_productos),
         ],
     ]
@@ -2904,10 +2917,10 @@ def generar_reporte_pdf():
         story.append(Spacer(1, 6))
 
         consultas_resultado_data = [
-            ['RESURTIDO RECETAS', 'UTILIDAD CONSULTAS Y RECETAS', 'CAPITAL TRABAJO'],
+            ['RESURTIDO RECETAS', 'LECTURA CONSULTAS Y RECETAS', 'CAPITAL TRABAJO'],
             [
                 fmt_dinero(costo_resurtido_recetas),
-                fmt_dinero(utilidad_consultas_recetas_display),
+                lectura_consultas_recetas,
                 fmt_dinero(capital_trabajo_consultas_recetas),
             ],
         ]
@@ -2933,12 +2946,12 @@ def generar_reporte_pdf():
         story.append(consultas_resultado_table)
         story.append(Spacer(1, 10))
 
-    resumen_operativo_data = [['LÍNEA', 'VENTAS/MES', 'UTILIDAD/MES', 'CAPITAL TRABAJO']]
+    resumen_operativo_data = [['LÍNEA', 'VENTAS/MES', 'LECTURA UTILIDAD', 'CAPITAL TRABAJO']]
     for fila in resumen_operativo_rows:
         resumen_operativo_data.append([
             fila['Línea'],
             fila['Ventas/mes'],
-            fila['Utilidad/mes'],
+            fila['Lectura utilidad'],
             fila['Capital trabajo'],
         ])
     resumen_operativo_table = Table(
@@ -2979,7 +2992,7 @@ def generar_reporte_pdf():
         'EQUILIBRIO',
         'META RETORNO',
         'LECTURA RETORNO',
-        'ROI AÑO 1',
+        'MARGEN OBJ.',
         'ESTATUS',
     ]]
     for fila in resumen_escenarios:
@@ -2990,7 +3003,7 @@ def generar_reporte_pdf():
             fila["Equilibrio meta"],
             fila["Meta retorno"],
             fila["Lectura retorno"],
-            fila["ROI año 1"],
+            fila["Margen objetivo"],
             fila["Estatus"],
         ])
 
@@ -3033,7 +3046,7 @@ def generar_reporte_pdf():
         story.append(Paragraph("Ruta para entrar al estándar", heading_style))
         ruta_estandar_html = f"""
         <b>Meta de ventas:</b> {meta_ventas_texto} al mes, equivalente a subir {faltante_ventas_texto} frente al nivel actual.<br/>
-        <b>Meta de utilidad:</b> {meta_utilidad_texto} al mes como run-rate estabilizado.<br/>
+        <b>Utilidad operativa esperada:</b> {utilidad_operativa_lectura} al estabilizarse, con margen objetivo {MARGEN_OBJETIVO_COMERCIAL}.<br/>
         <b>Meta de tickets:</b> {meta_tickets_texto} al mes con ticket blended de referencia de {ticket_blended_meta_texto}.<br/>
         <b>Ruta por inversión:</b> bajar el total a recuperar hacia {meta_inversion_texto}, es decir recortar cerca de {recorte_inversion_texto}.<br/>
         <b>Ruta por gastos fijos:</b> bajar la estructura hacia {gasto_fijo_meta_texto} al mes, equivalente a recortar aproximadamente {reduccion_gf_texto}.
@@ -3084,7 +3097,7 @@ def generar_reporte_pdf():
     # Evolución del negocio (TRIMESTRAL - más atractivo)
     story.append(Paragraph("Evolución Trimestral del Primer Año", heading_style))
     
-    proy_data = [['PERÍODO', 'INGRESOS', 'UTILIDAD NETA', 'MARGEN']]
+    proy_data = [['PERÍODO', 'INGRESOS', 'LECTURA OPERATIVA', 'MARGEN OBJ.']]
     trimestres = [
         ("Mes 1-3", 0, 2),
         ("Mes 4-6", 3, 5), 
@@ -3095,13 +3108,13 @@ def generar_reporte_pdf():
     for nombre, inicio, fin in trimestres:
         ventas_trim = sum([int(proyeccion[i]['Ventas'].replace('$', '').replace(',', '')) for i in range(inicio, fin+1)])
         util_trim = sum([int(proyeccion[i]['Util. Neta'].replace('$', '').replace(',', '')) for i in range(inicio, fin+1)])
-        margen_trim = util_trim / ventas_trim * 100 if ventas_trim > 0 else 0
+        lectura_trim = "Positiva" if util_trim > 0 else "Capital de trabajo"
         
         proy_data.append([
             nombre,
             f'${ventas_trim:,}',
-            f'${util_trim:,}',
-            f'{margen_trim:.1f}%'
+            lectura_trim,
+            MARGEN_OBJETIVO_COMERCIAL
         ])
     
     proy_table = Table(
@@ -3132,7 +3145,8 @@ def generar_reporte_pdf():
         
         <b>Arranque Controlado:</b> El proyecto soporta el periodo inicial y cierra con utilidad positiva en el primer año<br/>
         <b>Recuperación Comercial:</b> {retorno_reporte_detalle}<br/>
-        <b>ROI Atractivo:</b> {roi_anual*100:.1f}% en el primer año, ya considerando rampa de arranque<br/>
+        <b>Margen objetivo:</b> {MARGEN_OBJETIVO_COMERCIAL} como banda comercial de referencia al estabilizarse<br/>
+        <b>Utilidad operativa esperada:</b> {utilidad_operativa_lectura} al estabilizarse<br/>
         <b>Mercado Estable:</b> Sector salud con demanda constante y creciente<br/><br/>
         
         <b>RECOMENDACIÓN:</b> Proceder con la inversión. Los números demuestran 
