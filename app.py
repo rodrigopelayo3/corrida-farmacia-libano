@@ -471,7 +471,7 @@ st.markdown(f"""
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
-        margin-top: 14px;
+        margin-top: 0;
     }}
     .sales-stat {{
         background: rgba(255,255,255,0.92);
@@ -1979,8 +1979,6 @@ condiciones_banda = [
 st.markdown(
     f"""
     <div class="sales-hero">
-        <h2>{copy_modelo['headline']}</h2>
-        <p>{copy_modelo['pitch']}</p>
         <div class="sales-grid">
             <div class="sales-stat">
                 <div class="sales-stat-label">{retorno_principal_label}</div>
