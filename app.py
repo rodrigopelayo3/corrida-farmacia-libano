@@ -2009,8 +2009,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown("### 💼 Fortalezas del Formato")
-_render_sales_cards(copy_modelo["cards"], eyebrow="Fortaleza del formato")
+st.markdown("### 💼 Lectura comercial del modelo")
+_render_sales_cards(copy_modelo["cards"], eyebrow="Contexto comercial")
 
 st.markdown(
     f"""
@@ -2236,22 +2236,22 @@ with tabs[0]:
         ("Ruta de viabilidad", f"Primero valida demanda y mezcla, después margen objetivo {MARGEN_OBJETIVO_COMERCIAL} y recuperación dentro del estándar."),
     ])
 
-    st.markdown("### 📊 Números Clave")
+    st.markdown("### 📊 Base inicial de la corrida")
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric("👥 Tickets/mes", f"{clientes_mes_display:,}")
-        st.caption("Tickets mensuales estabilizados")
+        st.metric("💼 Capital a recuperar", fmt_dinero(inversion_total))
+        st.caption("Inversión base más colchón operativo")
     with c2:
-        st.metric("💵 Ventas mes 1", f"${ventas_mes_1:,.0f}")
-        st.caption("Ya con rampa de arranque")
+        st.metric("🛡️ Colchón operativo", fmt_dinero(colchon_operativo))
+        st.caption("Reserva comercial para arranque y maduración")
     with c3:
-        st.metric("💰 Utilidad operativa", utilidad_operativa_lectura)
-        st.caption("Esperada al estabilizarse")
+        st.metric("👥 Tickets estimados/mes", f"{clientes_mes_display:,}")
+        st.caption("Derivado de flujo, conversión y horario")
 
     c4, c5, c6 = st.columns(3)
     with c4:
-        st.metric("📈 Ventas estabilizadas", f"${ventas_mes_estable:,.0f}")
-        st.caption("Mes maduro sin rampa")
+        st.metric("💵 Venta estable estimada", fmt_dinero(ventas_mes_estable))
+        st.caption("Referencia mensual de maduración, no garantía")
     with c5:
         st.metric("🎯 Equilibrio objetivo", EQUILIBRIO_OBJETIVO_COMERCIAL)
         st.caption(nivel_equilibrio_texto)
@@ -2261,14 +2261,14 @@ with tabs[0]:
 
     c7, c8, c9 = st.columns(3)
     with c7:
-        st.metric("💼 Nivel de equilibrio", f"{porcentaje_equilibrio:.0f}%")
-        st.caption("De la venta estable")
+        st.metric("💰 Utilidad operativa", utilidad_operativa_lectura)
+        st.caption("Lectura esperada al estabilizarse")
     with c8:
         st.metric("⏱️ Recuperación estimada", retorno_visual["metrica"])
         st.caption(f"Estándar Líbano: {meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses")
     with c9:
-        st.metric("💸 Recuperado al mes 30", f"${df_num.iloc[-1]['Recuperado']:,.0f}")
-        st.caption("Avance acumulado sobre la inversión total")
+        st.metric("🚦 Estado comercial", "Dentro" if cumple_estandar_comercial else "Ajustar")
+        st.caption("Valida si la corrida entra a la banda objetivo")
 
     if not cumple_estandar_comercial and meta_comercial["alcanzable"]:
         st.markdown("### 🧱 Estándar mínimo operativo")
@@ -2287,8 +2287,8 @@ with tabs[0]:
         st.markdown("### 🔧 Palancas de mejora")
         _render_sales_cards(palancas_mejora, eyebrow="Palanca cuantificada")
 
-    st.markdown("### 🧭 Fortalezas del modelo")
-    _render_sales_cards(argumentos_cards, eyebrow="Lectura del modelo")
+    st.markdown("### 🧭 Factores que sostienen la lectura")
+    _render_sales_cards(argumentos_cards, eyebrow="Factor de viabilidad")
 
     st.markdown("### 🤝 Ruta de viabilidad")
     col_cierre1, col_cierre2 = st.columns(2)
