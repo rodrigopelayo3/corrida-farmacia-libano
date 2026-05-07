@@ -446,6 +446,32 @@ st.markdown(f"""
         font-weight: 800;
         line-height: 1.1;
     }}
+    .sidebar-summary-card {{
+        background: rgba(4, 20, 37, 0.26);
+        border-left: 4px solid {VERDE};
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-top: 10px;
+        color: #ffffff;
+    }}
+    .sidebar-summary-card strong,
+    .sidebar-summary-card span,
+    .sidebar-summary-card small {{
+        display: block;
+    }}
+    .sidebar-summary-card strong {{
+        font-size: 13px;
+        margin-bottom: 3px;
+    }}
+    .sidebar-summary-card span {{
+        font-size: 13px;
+        font-weight: 700;
+    }}
+    .sidebar-summary-card small {{
+        color: #b8cce1;
+        font-size: 11px;
+        margin-top: 3px;
+    }}
 
     .sales-hero {{
         background: linear-gradient(135deg, {AZUL} 0%, #0b5a97 58%, #dff5eb 58%, #f7fbf8 100%);
@@ -867,7 +893,7 @@ def construir_retorno_visual(meses_recuperacion, escenario, cumple_estandar):
         "hero": banda_corta,
         "metrica": banda_larga,
         "resumen": f"Objetivo comercial {banda_larga}. Hoy la corrida requiere ajuste para volver a ese rango.",
-        "caption": f"Banda comercial del escenario. Hoy la corrida requiere ajuste para volver a {banda_larga}.",
+        "caption": f"Banda comercial objetivo: {banda_larga}.",
     }
 
 
@@ -1401,14 +1427,14 @@ st.sidebar.caption(
 st.sidebar.markdown(
     f"""
     <div class="sidebar-scenario-box">
-        <div class="sidebar-scenario-title">Parámetros Iniciales del Escenario</div>
+        <div class="sidebar-scenario-title">Objetivos del escenario</div>
         <div class="sidebar-scenario-grid">
             <div class="sidebar-scenario-kpi">
-                <span>Retorno Meta</span>
+                <span>Recuperación</span>
                 <strong>{banda_sidebar['payback_min']:.0f}-{banda_sidebar['payback_max']:.0f} meses</strong>
             </div>
             <div class="sidebar-scenario-kpi">
-                <span>Punto de Equilibrio</span>
+                <span>Equilibrio</span>
                 <strong>Mes {banda_sidebar['equilibrio_mes']}</strong>
             </div>
         </div>
@@ -1509,10 +1535,9 @@ if st.session_state.get("combo_parametros_iniciales") != combo_parametros_inicia
         st.session_state["ticket_receta_sidebar"] = int(max(p.get("ticket_receta", 120), 80))
         st.session_state["surten_sidebar"] = max(float(p.get("surten", SURTEN_MINIMO[escenario] / 100) * 100), float(SURTEN_MINIMO[escenario]))
 
-with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
-    st.caption("La corrida aplica pisos comerciales para evitar escenarios inferiores a una operación rentable.")
+with st.sidebar.expander("👥 Flujo del local", expanded=True):
     flujo = st.number_input(
-        "Peatones por hora",
+        "Peatones/hora",
         min_value=minimos_modelo["flujo"],
         value=st.session_state.get("flujo_sidebar", max(p["flujo"], minimos_modelo["flujo"])),
         step=5,
@@ -1520,7 +1545,7 @@ with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
         help="Personas caminando frente al local en una hora normal"
     )
     flujo_vehicular = st.number_input(
-        "Vehículos por hora",
+        "Vehículos/hora",
         min_value=minimos_modelo["flujo_vehicular"],
         value=st.session_state.get("flujo_vehicular_sidebar", max(minimos_modelo["flujo_vehicular"], int(p["flujo"] * 1.5))),
         step=10,
@@ -1528,7 +1553,7 @@ with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
         help="Autos o motos que pasan frente al local"
     )
     conversion = st.number_input(
-        "Conversión peatonal (%)",
+        "Conversión (%)",
         min_value=float(CONVERSION_MINIMA[escenario]),
         value=st.session_state.get("conversion_sidebar", float(CONVERSION_MINIMA[escenario])),
         step=0.5,
@@ -1536,7 +1561,7 @@ with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
         help="Porcentaje de peatones que entra y compra"
     ) / 100
     captacion_vehicular = st.number_input(
-        "Captación vehicular (%)",
+        "Captación autos (%)",
         min_value=float(CAPTACION_VEHICULAR_MINIMA[escenario]),
         value=st.session_state.get("captacion_vehicular_sidebar", float(CAPTACION_VEHICULAR_MINIMA[escenario])),
         step=0.1,
@@ -1544,7 +1569,7 @@ with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
         help="Porcentaje de vehículos que sí se detienen a comprar"
     ) / 100
     horas = st.number_input(
-        "Horas abiertas por día",
+        "Horas/día",
         min_value=minimos_modelo["horas"],
         max_value=16,
         value=st.session_state.get("horas_sidebar", 12),
@@ -1557,10 +1582,15 @@ with st.sidebar.expander("👥 Tráfico peatonal y vehicular", expanded=True):
     flujo_peatonal_dia = flujo * horas
     flujo_vehicular_dia = flujo_vehicular * horas
     clientes_vehiculares_dia = flujo_vehicular_dia * captacion_vehicular
-    st.info(
-        f"📊 Tráfico diario estimado: **{flujo_peatonal_dia:,} peatones** y "
-        f"**{flujo_vehicular_dia:,} vehículos**. Con tu captación, "
-        f"eso agrega **~{clientes_vehiculares_dia:,.0f} tickets/día** desde autos."
+    st.markdown(
+        f"""
+        <div class="sidebar-summary-card">
+            <strong>Flujo diario</strong>
+            <span>{flujo_peatonal_dia:,} peatones · {flujo_vehicular_dia:,} vehículos</span>
+            <small>Autos captados: ~{clientes_vehiculares_dia:,.0f} tickets/día</small>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 with st.sidebar.expander("🧾 Gasto variable", expanded=False):
@@ -1991,17 +2021,17 @@ st.markdown(
             <div class="sales-stat">
                 <div class="sales-stat-label">Equilibrio Objetivo</div>
                 <div class="sales-stat-value">{EQUILIBRIO_OBJETIVO_COMERCIAL}</div>
-                <div class="sales-stat-caption">Ventana comercial para estabilizar la operación sin prometer un mes exacto.</div>
+                <div class="sales-stat-caption">Ventana comercial de estabilización.</div>
             </div>
             <div class="sales-stat">
                 <div class="sales-stat-label">Utilidad Operativa Esperada</div>
                 <div class="sales-stat-value">{utilidad_operativa_lectura}</div>
-                <div class="sales-stat-caption">Lectura cualitativa al estabilizarse; no representa garantía de utilidad.</div>
+                <div class="sales-stat-caption">Lectura al estabilizarse.</div>
             </div>
             <div class="sales-stat">
                 <div class="sales-stat-label">Margen Objetivo</div>
                 <div class="sales-stat-value">{MARGEN_OBJETIVO_COMERCIAL}</div>
-                <div class="sales-stat-caption">Banda comercial de margen operativo esperada al estabilizarse.</div>
+                <div class="sales-stat-caption">Banda comercial de referencia.</div>
             </div>
         </div>
     </div>
