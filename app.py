@@ -2762,29 +2762,14 @@ def generar_reporte_pdf():
     story.append(Paragraph(potencial_desc, styles['Normal']))
     story.append(Spacer(1, 20))
     
-    # Resumen ejecutivo (MÁS VENDEDOR)
+    # Resumen ejecutivo prudente para evitar prometer cifras puntuales.
     story.append(Paragraph("Resultados Proyectados", heading_style))
-    
-    # Tabla de métricas principales (mejorada)
+
     metricas_data = [
-        ['MÉTRICA CLAVE', 'RESULTADO'],
-        ['Tickets mensuales estabilizados', f'{clientes_mes_display:,} tickets'],
-        ['Inversión total a recuperar', f'${inversion_total:,.0f}'],
-        ['Colchón operativo', f'${colchon_operativo:,.0f}'],
-        ['Ingresos mes 1', f'${ventas_mes_1:,.0f}'],
-        ['Utilidad neta mes 1', f'${utilidad_mes_1:,.0f}'],
-        ['Ingresos estabilizados', f'${ventas_totales:,.0f}'],
-        ['Utilidad neta estabilizada', f'${utilidad_neta:,.0f}'],
-        ['Margen de utilidad', f'{margen_neto*100:.1f}%'],
-        ['ROI primer año', f'{roi_anual*100:.1f}%'],
-        ['Período de recuperación', retorno_reporte],
+        ['INDICADOR', 'LECTURA'],
         ['Equilibrio objetivo', f'Mes {mes_equilibrio_objetivo}'],
-        ['Techo operativo mensual', f'${ventas_tope:,.0f} en ventas y ${utilidad_tope:,.0f} de utilidad'],
-        ['Mes de estabilización', f'Mes {mes_tope_operativo or MESES_PROYECCION}'],
-        ['Punto de equilibrio', f'${ventas_be:,.0f}/mes'],
-        ['% de equilibrio', f'{porcentaje_equilibrio:.1f}% de la venta estable'],
-        ['Ingresos primer año', f'${ventas_anual:,.0f}'],
-        ['Utilidad primer año', f'${util_anual:,.0f}'],
+        ['Utilidad esperada', 'Positiva al estabilizarse' if utilidad_neta > 0 else 'Requiere maduración operativa'],
+        ['Nivel de equilibrio', f'{porcentaje_equilibrio:.0f}% de la venta estable'],
     ]
     
     metricas_table = Table(
@@ -2802,8 +2787,13 @@ def generar_reporte_pdf():
         ('GRID', (0, 0), (-1, -1), 1, colors.darkgray),
         ('FONTSIZE', (0, 1), (-1, -1), 10),
     ]))
-    
+
     story.append(metricas_table)
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(
+        "Estos indicadores son una lectura de viabilidad con base en los supuestos capturados. No deben interpretarse como garantía de venta, utilidad o recuperación.",
+        styles['Normal']
+    ))
     story.append(Spacer(1, 20))
 
     story.append(Paragraph("Cómo se construyen las ventas", heading_style))
