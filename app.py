@@ -467,28 +467,6 @@ st.markdown(f"""
         line-height: 1.5;
         max-width: 640px;
     }}
-    .sales-badges {{
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin: 14px 0 18px 0;
-    }}
-    .sales-badge {{
-        display: inline-block;
-        background: rgba(255,255,255,0.15);
-        border: 1px solid rgba(255,255,255,0.25);
-        border-radius: 999px;
-        color: white;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 6px 12px;
-        letter-spacing: 0.02em;
-    }}
-    .sales-badge-light {{
-        background: rgba(0, 166, 81, 0.10);
-        border: 1px solid rgba(0, 166, 81, 0.20);
-        color: {VERDE};
-    }}
     .sales-grid {{
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -710,6 +688,11 @@ DEFAULT_CRECIMIENTO_ESCENARIO = {
     "Medio": "Comercial (3.5%/mes)",
     "Alto": "Acelerado (5%/mes)",
 }
+MES_TOPE_OPERATIVO_ESCENARIO = {
+    "Conservador": 16,
+    "Medio": 16,
+    "Alto": 16,
+}
 CRECIMIENTO_OPCIONES_POR_ESCENARIO = {
     "Conservador": ["Base (1.5%/mes)", "Comercial (3.5%/mes)", "Acelerado (5%/mes)"],
     "Medio": ["Comercial (3.5%/mes)", "Acelerado (5%/mes)"],
@@ -824,16 +807,34 @@ def obtener_gastos_fijos_modelo(modelo):
     return {**GASTOS_FIJOS_EDITABLES[modelo], **GASTOS_FIJOS_AUTOMATICOS[modelo]}
 
 
-def construir_factores_mensuales(arranque_inicial, meses_rampa, crec, meses_proyeccion=MESES_PROYECCION):
+def construir_factores_mensuales(
+    arranque_inicial,
+    meses_rampa,
+    crec,
+    mes_tope_operativo=None,
+    meses_proyeccion=MESES_PROYECCION,
+):
     rampa = np.linspace(arranque_inicial, 1.0, meses_rampa)
     factores = []
+    factor_tope = None
+    if mes_tope_operativo is not None:
+        if mes_tope_operativo <= meses_rampa:
+            factor_tope = float(rampa[max(mes_tope_operativo - 1, 0)])
+        else:
+            factor_tope = float((1 + crec) ** (mes_tope_operativo - meses_rampa))
     for t in range(meses_proyeccion):
+        mes_actual = t + 1
         if t < meses_rampa:
             factor = rampa[t]
         else:
-            factor = ((1 + crec) ** (t - meses_rampa + 1))
+            factor_crecimiento = ((1 + crec) ** (t - meses_rampa + 1))
+            if factor_tope is not None and mes_actual > mes_tope_operativo:
+                factor = factor_tope
+            else:
+                factor = factor_crecimiento
         factores.append(factor)
-    return factores
+    factor_tope_efectivo = max(factores) if factores else 1.0
+    return factores, factor_tope_efectivo, mes_tope_operativo
 
 
 def clasificar_retorno(meses_recuperacion):
@@ -1012,7 +1013,13 @@ def calcular_resultados_proyectados(
     porcentaje_equilibrio = limitar(porcentaje_equilibrio, 0, 100)
     margen_seguridad = max(100 - porcentaje_equilibrio, 0)
 
-    factores = construir_factores_mensuales(arranque_inicial, meses_rampa, crec, meses_proyeccion)
+    factores, techo_maduro_factor_efectivo, mes_tope_operativo = construir_factores_mensuales(
+        arranque_inicial,
+        meses_rampa,
+        crec,
+        mes_tope_operativo=MES_TOPE_OPERATIVO_ESCENARIO[escenario],
+        meses_proyeccion=meses_proyeccion,
+    )
 
     def simular_escala(scale, incluir_detalle):
         proyeccion = []
@@ -1022,6 +1029,8 @@ def calcular_resultados_proyectados(
         recuperado_acumulado = 0.0
         meses_recuperacion_real = float("inf")
         mes_equilibrio_real = float("inf")
+        ventas_tope = 0.0
+        utilidad_tope = 0.0
 
         ventas_farmacia = ventas_farmacia_base * scale
         ventas_recetas = ventas_recetas_base * scale
@@ -1042,6 +1051,11 @@ def calcular_resultados_proyectados(
         ticket_prom_escala = ventas_totales / (clientes_totales_base * scale) if clientes_totales_base > 0 else 0
 
         for t, factor in enumerate(factores):
+            flujo_peatonal_mes_t = flujo_peatonal_mes * factor
+            flujo_vehicular_mes_t = flujo_vehicular_mes * factor
+            clientes_peatonales_mes_t = clientes_peatonales_mes * factor
+            clientes_vehiculares_mes_t = clientes_vehiculares_mes * factor
+            tickets_mes_t = clientes_peatonales_mes_t + clientes_vehiculares_mes_t
             vf = ventas_farmacia * factor
             vr = ventas_recetas * factor
             va = ventas_abarrotes * factor
@@ -1054,7 +1068,10 @@ def calcular_resultados_proyectados(
             gasto_extra_t = gasto_lanzamiento if t < 3 else 0
             un_raw = ub - gastos_fijos - gv - gasto_extra_t
             un_display = max(un_raw, 0)
+            capital_trabajo_t = max(-un_raw, 0)
             mn = un_display / vt if vt > 0 else 0
+            ventas_tope = max(ventas_tope, vt)
+            utilidad_tope = max(utilidad_tope, un_display)
 
             utilidades_raw.append(un_raw)
             utilidades_display.append(un_display)
@@ -1073,12 +1090,18 @@ def calcular_resultados_proyectados(
             if incluir_detalle:
                 proyeccion.append({
                     "Mes": t + 1,
+                    "Escenario": escenario,
+                    "Peatones": f"{round(flujo_peatonal_mes_t):,}",
+                    "Vehículos": f"{round(flujo_vehicular_mes_t):,}",
+                    "Conv. peat.": f"{conversion * 100:.1f}%",
+                    "Capt. veh.": f"{captacion_vehicular * 100:.1f}%",
+                    "Tickets": f"{round(tickets_mes_t):,}",
                     "Ventas": f"${round(vt):,}",
                     "COGS": f"${round(ct):,}",
                     "Util. Bruta": f"${round(max(ub, 0)):,.0f}",
                     "Gastos Fijos": f"${round(gastos_fijos):,}",
                     "Gastos Var.": f"${round(gv):,}",
-                    "Apertura": f"${round(gasto_extra_t):,}",
+                    "Capital de trabajo": f"${round(capital_trabajo_t):,}",
                     "Util. Neta": f"${round(un_display):,}",
                     "Recuperado": f"${round(recuperado_acumulado):,}",
                     "Saldo por recuperar": f"${round(saldo_por_recuperar):,}",
@@ -1087,7 +1110,14 @@ def calcular_resultados_proyectados(
                 })
                 proyeccion_num.append({
                     "Mes": t + 1,
+                    "Escenario": escenario,
+                    "Peatones": round(flujo_peatonal_mes_t),
+                    "Vehículos": round(flujo_vehicular_mes_t),
+                    "Conv. peat.": round(conversion * 100, 1),
+                    "Capt. veh.": round(captacion_vehicular * 100, 1),
+                    "Tickets": round(tickets_mes_t),
                     "Ventas": round(vt),
+                    "Capital de trabajo": round(capital_trabajo_t),
                     "Util. Neta": round(un_display),
                     "Recuperado": round(recuperado_acumulado),
                     "Saldo por recuperar": round(saldo_por_recuperar),
@@ -1140,6 +1170,8 @@ def calcular_resultados_proyectados(
                 + ingresos_consulta * factores[0]
             ),
             "utilidad_mes_1": round(utilidades_display[0]) if utilidades_display else 0,
+            "ventas_tope": round(ventas_tope),
+            "utilidad_tope": round(utilidad_tope),
             "proyeccion": proyeccion,
             "proyeccion_num": proyeccion_num,
             "recuperado_mes_30": recuperado_acumulado,
@@ -1268,6 +1300,10 @@ def calcular_resultados_proyectados(
         "utilidad_mes_1": resultado_actual["utilidad_mes_1"],
         "ventas_mes_estable": resultado_actual["ventas_totales"],
         "utilidad_mes_estable": resultado_actual["utilidad_neta_display"],
+        "ventas_tope": resultado_actual["ventas_tope"],
+        "utilidad_tope": resultado_actual["utilidad_tope"],
+        "techo_maduro_factor": techo_maduro_factor_efectivo,
+        "mes_tope_operativo": mes_tope_operativo,
         "cumple_estandar_comercial": cumple_estandar_comercial,
         "clasificacion_retorno": clasificar_retorno(meses_recuperacion_real),
         "meta_comercial": {
@@ -1802,12 +1838,17 @@ ventas_mes_1 = resultado["ventas_mes_1"]
 utilidad_mes_1 = resultado["utilidad_mes_1"]
 ventas_mes_estable = resultado["ventas_mes_estable"]
 utilidad_mes_estable = resultado["utilidad_mes_estable"]
+ventas_tope = resultado["ventas_tope"]
+utilidad_tope = resultado["utilidad_tope"]
+techo_maduro_factor = resultado["techo_maduro_factor"]
+mes_tope_operativo = resultado["mes_tope_operativo"]
 cumple_estandar_comercial = resultado["cumple_estandar_comercial"]
 clasificacion_retorno = resultado["clasificacion_retorno"]
 meta_comercial = resultado["meta_comercial"]
 retorno_visual = construir_retorno_visual(meses_recuperacion, escenario, cumple_estandar_comercial)
 clientes_mes_display = int(np.ceil(clientes_mes))
 clientes_be_display = int(np.ceil(clientes_be)) if np.isfinite(clientes_be) else 0
+techo_sobre_estable_pct = max((techo_maduro_factor - 1) * 100, 0)
 
 resumen_escenarios = []
 for escenario_pdf in ["Conservador", "Medio", "Alto"]:
@@ -1879,18 +1920,6 @@ st.caption(
 )
 
 copy_modelo = MODELO_COMERCIAL[modelo]
-estatus_presentacion = (
-    "Dentro del estándar Líbano" if cumple_estandar_comercial
-    else "Cerca del estándar Líbano" if meta_comercial["alcanzable"]
-    else "Fuera del estándar Líbano"
-)
-mensaje_presentacion = (
-    "La corrida ya se mantiene dentro de los umbrales de retorno y equilibrio definidos por Farmacia Líbano."
-    if cumple_estandar_comercial
-    else "La corrida todavía no entra a la banda objetivo, pero sí muestra con claridad qué tendría que pasar para llevarla a estándar."
-    if meta_comercial["alcanzable"]
-    else "La base actual todavía no alcanza el estándar Líbano; primero conviene ajustar ubicación, costos o nivel de demanda."
-)
 retorno_hero = retorno_visual["hero"]
 retorno_real_texto = retorno_visual["caption"]
 banda_objetivo_texto = f"{meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses"
@@ -1952,13 +1981,6 @@ st.markdown(
     <div class="sales-hero">
         <h2>{copy_modelo['headline']}</h2>
         <p>{copy_modelo['pitch']}</p>
-        <div class="sales-badges">
-            <span class="sales-badge">{estatus_presentacion}</span>
-            <span class="sales-badge">Escenario {escenario}</span>
-            <span class="sales-badge">Retorno meta {meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses</span>
-            <span class="sales-badge">Equilibrio meta mes {meta_escenario_actual['equilibrio_mes']}</span>
-        </div>
-        <p>{mensaje_presentacion}</p>
         <div class="sales-grid">
             <div class="sales-stat">
                 <div class="sales-stat-label">{retorno_principal_label}</div>
@@ -2005,7 +2027,6 @@ vehiculos_dia = flujo_vehicular * horas
 tickets_vehiculares_dia = vehiculos_dia * captacion_vehicular
 conversion_rate = conversion * 100
 captacion_rate = captacion_vehicular * 100
-crec_anual = ((1 + crec_efectivo) ** 12 - 1) * 100
 costo_producto = cogs_total
 gastos_extras = gastos_variables
 total_gastos = costo_producto + gastos_fijos + gastos_extras
@@ -2024,6 +2045,102 @@ if m["abarrotes"]:
 margen_farmacia = (1 - cogs) * 100
 margen_recetas = (1 - cogs_receta) * 100 if m["consultorio"] else None
 margen_abarrotes = (1 - p.get("cogs_abarrotes", 0.9)) * 100 if m["abarrotes"] else None
+
+costo_resurtido_farmacia = ventas_farmacia * cogs
+gasto_variable_farmacia = ventas_farmacia * gastos_var
+utilidad_productos_raw = ventas_farmacia - costo_resurtido_farmacia - gasto_variable_farmacia - gastos_fijos
+utilidad_productos_display = max(utilidad_productos_raw, 0)
+capital_trabajo_productos = max(-utilidad_productos_raw, 0)
+clientes_dia = clientes_mes / dias if dias else 0
+ventas_farmacia_dia = ventas_farmacia / dias if dias else 0
+clientes_hora = clientes_dia / horas if horas else 0
+ventas_farmacia_hora = ventas_farmacia_dia / horas if horas else 0
+
+ventas_consultas_recetas = ingresos_consulta + ventas_recetas
+costo_resurtido_recetas = ventas_recetas * cogs_receta
+gasto_variable_consultas_recetas = ventas_consultas_recetas * gastos_var
+utilidad_consultas_recetas_raw = ventas_consultas_recetas - costo_resurtido_recetas - gasto_variable_consultas_recetas
+utilidad_consultas_recetas_display = max(utilidad_consultas_recetas_raw, 0)
+capital_trabajo_consultas_recetas = max(-utilidad_consultas_recetas_raw, 0)
+porcentaje_consultas = (consultas_mes / clientes_mes * 100) if clientes_mes else 0
+recetas_mes = consultas_mes * surten if m["consultorio"] else 0
+
+costo_resurtido_abarrotes = ventas_abarrotes * cogs_abarrotes if m["abarrotes"] else 0
+gasto_variable_abarrotes = ventas_abarrotes * gastos_var if m["abarrotes"] else 0
+utilidad_abarrotes_raw = ventas_abarrotes - costo_resurtido_abarrotes - gasto_variable_abarrotes
+utilidad_abarrotes_display = max(utilidad_abarrotes_raw, 0)
+capital_trabajo_abarrotes = max(-utilidad_abarrotes_raw, 0)
+utilidad_operativa_display = max(utilidad_productos_raw + utilidad_consultas_recetas_raw + utilidad_abarrotes_raw, 0)
+capital_trabajo_operativo = max(-(utilidad_productos_raw + utilidad_consultas_recetas_raw + utilidad_abarrotes_raw), 0)
+
+productos_operativos_df = pd.DataFrame([{
+    "Gastos fijos": fmt_dinero(gastos_fijos),
+    "Peatones/hora": f"{flujo:,}",
+    "Vehículos/hora": f"{flujo_vehicular:,}",
+    "Horas/día": f"{horas:,}",
+    "Días/mes": f"{dias:,}",
+    "Flujo/mes": f"{round(flujo_peatonal_mes + flujo_vehicular_mes):,}",
+    "% conv. peat.": f"{conversion_rate:.1f}%",
+    "% capt. veh.": f"{captacion_rate:.1f}%",
+    "Clientes/mes": f"{clientes_mes_display:,}",
+    "Ticket promedio": fmt_dinero(ticket),
+    "Ventas productos": fmt_dinero(ventas_farmacia),
+    "Costo resurtido": fmt_dinero(costo_resurtido_farmacia),
+    "Utilidad productos": fmt_dinero(utilidad_productos_display),
+    "Capital trabajo": fmt_dinero(capital_trabajo_productos),
+}])
+
+productos_derivacion_df = pd.DataFrame([{
+    "Clientes/día": f"{clientes_dia:,.0f}",
+    "Ventas/día": fmt_dinero(ventas_farmacia_dia),
+    "Clientes/hora": f"{clientes_hora:,.1f}",
+    "Ventas/hora": fmt_dinero(ventas_farmacia_hora),
+}])
+
+consultas_recetas_df = pd.DataFrame([{
+    "Clientes/mes": f"{clientes_mes_display:,}",
+    "% consultas": f"{porcentaje_consultas:.1f}%",
+    "Consultas/mes": f"{consultas_mes:,.0f}",
+    "Precio consulta": fmt_dinero(ingreso_consulta),
+    "Ventas consultas": fmt_dinero(ingresos_consulta),
+    "% recetas": f"{surten*100:.1f}%" if m["consultorio"] else "0.0%",
+    "Recetas/mes": f"{recetas_mes:,.0f}",
+    "Precio receta": fmt_dinero(ticket_receta),
+    "Ventas recetas": fmt_dinero(ventas_recetas),
+    "Resurtido recetas": fmt_dinero(costo_resurtido_recetas),
+    "Utilidad consultas y recetas": fmt_dinero(utilidad_consultas_recetas_display),
+    "Capital trabajo": fmt_dinero(capital_trabajo_consultas_recetas),
+}])
+
+resumen_operativo_rows = [
+    {
+        "Línea": "Productos",
+        "Ventas/mes": fmt_dinero(ventas_farmacia),
+        "Utilidad/mes": fmt_dinero(utilidad_productos_display),
+        "Capital trabajo": fmt_dinero(capital_trabajo_productos),
+    }
+]
+if m["consultorio"]:
+    resumen_operativo_rows.append({
+        "Línea": "Consultas y recetas",
+        "Ventas/mes": fmt_dinero(ventas_consultas_recetas),
+        "Utilidad/mes": fmt_dinero(utilidad_consultas_recetas_display),
+        "Capital trabajo": fmt_dinero(capital_trabajo_consultas_recetas),
+    })
+if m["abarrotes"]:
+    resumen_operativo_rows.append({
+        "Línea": "Conveniencia",
+        "Ventas/mes": fmt_dinero(ventas_abarrotes),
+        "Utilidad/mes": fmt_dinero(utilidad_abarrotes_display),
+        "Capital trabajo": fmt_dinero(capital_trabajo_abarrotes),
+    })
+resumen_operativo_rows.append({
+    "Línea": "Total mensual",
+    "Ventas/mes": fmt_dinero(ventas_totales),
+    "Utilidad/mes": fmt_dinero(utilidad_operativa_display),
+    "Capital trabajo": fmt_dinero(capital_trabajo_operativo),
+})
+resumen_operativo_df = pd.DataFrame(resumen_operativo_rows)
 
 escenario_visual = {
     "Conservador": {
@@ -2070,7 +2187,7 @@ argumentos_cards = [
     ),
 ]
 
-tabs = st.tabs(["🎯 Cierre Ejecutivo", "👥 Mercado y Demanda", "💸 Economía", "📈 Proyección"])
+tabs = st.tabs(["🎯 Cierre Ejecutivo", "👥 Mercado y Demanda", "🧮 Desglose Operativo", "💸 Economía", "📈 Proyección"])
 
 with tabs[0]:
     st.markdown("### 🎯 Cierre Ejecutivo")
@@ -2211,7 +2328,7 @@ with tabs[1]:
     render_summary_strip([
         ("Tráfico peatonal", f"{peatones_dia:,} personas al día con conversión peatonal de {conversion_rate:.1f}%."),
         ("Tráfico vehicular", f"{vehiculos_dia:,} vehículos al día con captación de {captacion_rate:.1f}%."),
-        ("Crecimiento esperado", f"Después del mes {meses_rampa_efectivos} la unidad crece a un ritmo anualizado de {crec_anual:.1f}%."),
+        ("Maduración esperada", f"La unidad termina de crecer hacia el mes {mes_tope_operativo or MESES_PROYECCION}, alcanzando un techo operativo de {techo_sobre_estable_pct:.0f}% sobre el nivel estabilizado."),
     ])
 
     col_flujo1, col_flujo2, col_flujo3, col_flujo4 = st.columns(4)
@@ -2244,6 +2361,28 @@ with tabs[1]:
         render_horizontal_bar_chart(desglose, "Participación mensual por línea", VERDE)
 
 with tabs[2]:
+    st.markdown("### 🧮 Desglose Operativo")
+    render_summary_strip([
+        ("Escenario de flujo", f"{escenario}: {flujo:,} peatones/hora, {flujo_vehicular:,} vehículos/hora y {horas} horas abiertas al día."),
+        ("Conversión", f"{conversion_rate:.1f}% de peatones y {captacion_rate:.1f}% de vehículos se convierten en tickets."),
+        ("Ventas derivadas", f"{clientes_mes_display:,} tickets al mes con ticket promedio blended de {fmt_dinero(ticket_prom)}."),
+    ])
+
+    st.markdown("#### Productos")
+    st.dataframe(productos_operativos_df, use_container_width=True, hide_index=True)
+    st.dataframe(productos_derivacion_df, use_container_width=True, hide_index=True)
+
+    if m["consultorio"]:
+        st.markdown("#### Consultas y recetas")
+        st.dataframe(consultas_recetas_df, use_container_width=True, hide_index=True)
+
+    st.markdown("#### Ventas totales")
+    st.dataframe(resumen_operativo_df, use_container_width=True, hide_index=True)
+    st.caption(
+        "El capital de trabajo muestra el soporte temporal del arranque cuando una línea todavía no deja utilidad positiva."
+    )
+
+with tabs[3]:
     st.markdown("### 💸 Economía del Negocio")
     render_summary_strip([
         ("Punto de equilibrio", f"{fmt_dinero(ventas_be)} al mes para cubrir la estructura fija."),
@@ -2326,18 +2465,32 @@ with tabs[2]:
             st.markdown(f"**Equilibrio operativo objetivo: mes {mes_equilibrio_objetivo}**")
             st.markdown(f"**Margen de seguridad: {margen_seguridad:.0f}%**")
 
-with tabs[3]:
+with tabs[4]:
     st.markdown("### 📈 Proyección y Recuperación")
     render_summary_strip([
         ("Ventas del año", f"{fmt_dinero(ventas_anual)} proyectadas durante los primeros 12 meses."),
         ("Ganancia del año", f"{fmt_dinero(util_anual)} acumuladas durante el primer año."),
-        ("Recuperado al mes 30", f"{fmt_dinero(df_num.iloc[-1]['Recuperado'])} de la inversión total."),
+        ("Tope operativo", f"En el mes {mes_tope_operativo or MESES_PROYECCION} la unidad ronda {fmt_dinero(ventas_tope)} en ventas y {fmt_dinero(utilidad_tope)} de utilidad al mes."),
     ])
+    st.caption(
+        f"Cada mes deriva de un escenario {escenario.lower()} con {flujo:,} peatones/hora, "
+        f"{flujo_vehicular:,} vehículos/hora, conversión peatonal de {conversion_rate:.1f}% "
+        f"y captación vehicular de {captacion_rate:.1f}%."
+    )
+    st.caption(
+        "La columna `Capital de trabajo` agrupa el soporte temporal del arranque y cualquier faltante del mes mientras la sucursal madura."
+    )
 
     df_simple = pd.DataFrame([{
         "Mes": p["Mes"],
+        "Escenario": p["Escenario"],
+        "Peatones": p["Peatones"],
+        "Vehículos": p["Vehículos"],
+        "Conv. peat.": p["Conv. peat."],
+        "Capt. veh.": p["Capt. veh."],
+        "Tickets": p["Tickets"],
         "Ventas": p["Ventas"],
-        "Apertura": p["Apertura"],
+        "Capital de trabajo": p["Capital de trabajo"],
         "Te queda": p["Util. Neta"],
         "Recuperado": p["Recuperado"],
         "Saldo por recuperar": p["Saldo por recuperar"],
@@ -2347,6 +2500,10 @@ with tabs[3]:
 
     st.markdown("#### Evolución mensual")
     st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta", "Recuperado"]])
+    st.caption(
+        f"La proyección ya considera un techo operativo. "
+        f"A partir del mes {(mes_tope_operativo or MESES_PROYECCION) + 1}, la sucursal deja de crecer y se estabiliza."
+    )
 
     render_insight_panel(
         "Resumen Final",
@@ -2384,6 +2541,7 @@ def generar_reporte_pdf():
 
     # Obtener datos del franquiciatario
     datos_f = st.session_state.get('datos_franquicia', {})
+    modelo_pdf = modelo.replace("🏪 ", "").replace("🩺 ", "").replace("🛒 ", "")
     
     # Buffer para el PDF
     buffer = io.BytesIO()
@@ -2399,7 +2557,46 @@ def generar_reporte_pdf():
     
     subtitle_style = ParagraphStyle('CustomSubtitle', parent=styles['Normal'], 
                                    fontSize=12, spaceAfter=8, textColor=colors.Color(0, 0.651, 0.318))
-    
+    table_header_light_style = ParagraphStyle(
+        'TableHeaderLight',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=6.5,
+        leading=7.5,
+        alignment=1,
+        textColor=colors.black,
+    )
+    table_header_dark_style = ParagraphStyle(
+        'TableHeaderDark',
+        parent=table_header_light_style,
+        textColor=colors.whitesmoke,
+    )
+    table_cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontSize=7,
+        leading=8,
+        alignment=1,
+        wordWrap='CJK',
+    )
+    table_cell_left_style = ParagraphStyle(
+        'TableCellLeft',
+        parent=table_cell_style,
+        alignment=0,
+    )
+
+    def wrap_pdf_table(data, header_style=table_header_light_style, cell_style=table_cell_style, left_first_col=False):
+        wrapped = []
+        for row_idx, row in enumerate(data):
+            wrapped_row = []
+            for col_idx, value in enumerate(row):
+                style = header_style if row_idx == 0 else cell_style
+                if left_first_col and row_idx > 0 and col_idx == 0:
+                    style = table_cell_left_style
+                wrapped_row.append(Paragraph(escape(str(value)), style))
+            wrapped.append(wrapped_row)
+        return wrapped
+	    
     # Contenido del PDF
     story = []
 
@@ -2409,7 +2606,7 @@ def generar_reporte_pdf():
             Paragraph("<b>+FARMACIA LÍBANO</b>", title_style),
             crear_logo_pdf()
         ]],
-        colWidths=[5.6 * inch, 1.0 * inch]
+        colWidths=[5.25 * inch, 0.9 * inch]
     )
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -2436,7 +2633,7 @@ def generar_reporte_pdf():
     # Información del modelo
     conversion_rate = conversion * 100
     modelo_info = f"""
-    <b>Modelo de Franquicia:</b> {modelo}<br/>
+    <b>Modelo de Franquicia:</b> {modelo_pdf}<br/>
     <b>Escenario Analizado:</b> {escenario}<br/>
     <b>Inversión base:</b> ${inversion:,}<br/>
     <b>Colchón operativo:</b> ${colchon_operativo:,}<br/>
@@ -2447,7 +2644,7 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 15))
 
     # Guía para el cliente
-    story.append(Paragraph("📘 ¿Cómo leer este reporte?", heading_style))
+    story.append(Paragraph("Cómo leer este reporte", heading_style))
     nivel_trafico = (
         "alto" if flujo_peatonal_dia >= 1200 else
         "medio" if flujo_peatonal_dia >= 700 else
@@ -2489,7 +2686,7 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 18))
 
     # Resumen sencillo para cliente no técnico
-    story.append(Paragraph("🧭 Lectura simple del escenario", heading_style))
+    story.append(Paragraph("Lectura simple del escenario", heading_style))
     resumen_simple = f"""
     <b>En palabras simples:</b><br/>
     Hoy este análisis estima que con una inversión total de <b>${inversion_total:,.0f}</b>, una operación de <b>{horas} horas diarias</b> 
@@ -2504,7 +2701,7 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 18))
     
     # Explicación del escenario (VENDEDOR)
-    story.append(Paragraph("🎯 Análisis del Escenario", heading_style))
+    story.append(Paragraph("Análisis del Escenario", heading_style))
     
     if escenario == "Conservador":
         escenario_desc = f"""
@@ -2534,10 +2731,10 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 15))
     
     # Potencial del modelo (VENDEDOR)
-    story.append(Paragraph("💡 Potencial del Modelo", heading_style))
+    story.append(Paragraph("Potencial del Modelo", heading_style))
     
     potencial_desc = f"""
-    <b>El modelo {modelo} está diseñado para maximizar oportunidades:</b><br/>
+    <b>El modelo {modelo_pdf} está diseñado para maximizar oportunidades:</b><br/>
     """
     
     if modelo == "🏪 Mini":
@@ -2566,7 +2763,7 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 20))
     
     # Resumen ejecutivo (MÁS VENDEDOR)
-    story.append(Paragraph("📊 Resultados Proyectados", heading_style))
+    story.append(Paragraph("Resultados Proyectados", heading_style))
     
     # Tabla de métricas principales (mejorada)
     metricas_data = [
@@ -2582,13 +2779,18 @@ def generar_reporte_pdf():
         ['ROI primer año', f'{roi_anual*100:.1f}%'],
         ['Período de recuperación', retorno_reporte],
         ['Equilibrio objetivo', f'Mes {mes_equilibrio_objetivo}'],
+        ['Techo operativo mensual', f'${ventas_tope:,.0f} en ventas y ${utilidad_tope:,.0f} de utilidad'],
+        ['Mes de estabilización', f'Mes {mes_tope_operativo or MESES_PROYECCION}'],
         ['Punto de equilibrio', f'${ventas_be:,.0f}/mes'],
         ['% de equilibrio', f'{porcentaje_equilibrio:.1f}% de la venta estable'],
         ['Ingresos primer año', f'${ventas_anual:,.0f}'],
         ['Utilidad primer año', f'${util_anual:,.0f}'],
     ]
     
-    metricas_table = Table(metricas_data, colWidths=[3.2*inch, 2.3*inch])
+    metricas_table = Table(
+        wrap_pdf_table(metricas_data, header_style=table_header_dark_style, left_first_col=True),
+        colWidths=[3.35*inch, 2.05*inch],
+    )
     metricas_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.651, 0.318)),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -2604,7 +2806,177 @@ def generar_reporte_pdf():
     story.append(metricas_table)
     story.append(Spacer(1, 20))
 
-    story.append(Paragraph("🧭 Los 3 escenarios considerados", heading_style))
+    story.append(Paragraph("Cómo se construyen las ventas", heading_style))
+    story.append(Paragraph(
+        "Este desglose muestra la conversión operativa desde flujo, tickets y ticket promedio hasta ventas y utilidad mensual.",
+        styles['Normal']
+    ))
+    story.append(Spacer(1, 8))
+
+    productos_base_data = [
+        ['GASTOS FIJOS', 'PEAT./H', 'VEH./H', 'HORAS/DÍA', 'DÍAS/MES', 'FLUJO/MES', '% CONV.', 'CLIENTES/MES'],
+        [
+            fmt_dinero(gastos_fijos),
+            f'{flujo:,}',
+            f'{flujo_vehicular:,}',
+            f'{horas:,}',
+            f'{dias:,}',
+            f'{round(flujo_peatonal_mes + flujo_vehicular_mes):,}',
+            f'{conversion_rate:.1f}%',
+            f'{clientes_mes_display:,}',
+        ],
+    ]
+    productos_base_table = Table(
+        wrap_pdf_table(productos_base_data),
+        colWidths=[0.72*inch, 0.55*inch, 0.55*inch, 0.62*inch, 0.58*inch, 0.78*inch, 0.58*inch, 0.72*inch],
+    )
+    productos_base_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.94, 0.97, 0.97)),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.darkgray),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(productos_base_table)
+    story.append(Spacer(1, 6))
+
+    productos_resultado_data = [
+        ['TICKET', 'VENTAS PRODUCTOS', 'COSTO RESURTIDO', 'GASTO VARIABLE', 'UTILIDAD PRODUCTOS', 'CAPITAL TRABAJO'],
+        [
+            fmt_dinero(ticket),
+            fmt_dinero(ventas_farmacia),
+            fmt_dinero(costo_resurtido_farmacia),
+            fmt_dinero(gasto_variable_farmacia),
+            fmt_dinero(utilidad_productos_display),
+            fmt_dinero(capital_trabajo_productos),
+        ],
+    ]
+    productos_resultado_table = Table(
+        wrap_pdf_table(productos_resultado_data),
+        colWidths=[0.7*inch, 1.05*inch, 1.02*inch, 0.95*inch, 1.05*inch, 1.0*inch],
+    )
+    productos_resultado_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.94, 0.97, 0.97)),
+        ('BACKGROUND', (-1, 1), (-1, 1), colors.Color(0.88, 0.94, 0.86)),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.darkgray),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(productos_resultado_table)
+    story.append(Spacer(1, 10))
+
+    if m["consultorio"]:
+        consultas_data = [
+            ['CLIENTES/MES', '% CONSULTAS', 'CONSULTAS/MES', 'PRECIO CONSULTA', 'VENTAS CONSULTAS', '% RECETAS', 'RECETAS/MES', 'VENTAS RECETAS'],
+            [
+                f'{clientes_mes_display:,}',
+                f'{porcentaje_consultas:.1f}%',
+                f'{consultas_mes:,.0f}',
+                fmt_dinero(ingreso_consulta),
+                fmt_dinero(ingresos_consulta),
+                f'{surten*100:.1f}%',
+                f'{recetas_mes:,.0f}',
+                fmt_dinero(ventas_recetas),
+            ],
+        ]
+        consultas_table = Table(
+            wrap_pdf_table(consultas_data),
+            colWidths=[0.7*inch, 0.65*inch, 0.75*inch, 0.78*inch, 0.88*inch, 0.62*inch, 0.7*inch, 0.85*inch],
+        )
+        consultas_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.94, 0.97, 0.97)),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.darkgray),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(consultas_table)
+        story.append(Spacer(1, 6))
+
+        consultas_resultado_data = [
+            ['RESURTIDO RECETAS', 'UTILIDAD CONSULTAS Y RECETAS', 'CAPITAL TRABAJO'],
+            [
+                fmt_dinero(costo_resurtido_recetas),
+                fmt_dinero(utilidad_consultas_recetas_display),
+                fmt_dinero(capital_trabajo_consultas_recetas),
+            ],
+        ]
+        consultas_resultado_table = Table(
+            wrap_pdf_table(consultas_resultado_data),
+            colWidths=[1.35*inch, 1.8*inch, 1.15*inch],
+        )
+        consultas_resultado_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.94, 0.97, 0.97)),
+            ('BACKGROUND', (1, 1), (1, 1), colors.Color(0.72, 0.88, 0.65)),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.darkgray),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(consultas_resultado_table)
+        story.append(Spacer(1, 10))
+
+    resumen_operativo_data = [['LÍNEA', 'VENTAS/MES', 'UTILIDAD/MES', 'CAPITAL TRABAJO']]
+    for fila in resumen_operativo_rows:
+        resumen_operativo_data.append([
+            fila['Línea'],
+            fila['Ventas/mes'],
+            fila['Utilidad/mes'],
+            fila['Capital trabajo'],
+        ])
+    resumen_operativo_table = Table(
+        wrap_pdf_table(resumen_operativo_data, left_first_col=True),
+        colWidths=[1.75*inch, 1.15*inch, 1.15*inch, 1.15*inch],
+    )
+    resumen_operativo_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.94, 0.97, 0.97)),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.Color(0.88, 0.94, 0.86)),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.darkgray),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(resumen_operativo_table)
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("Los 3 escenarios considerados", heading_style))
     story.append(Paragraph(
         f"Se comparan los escenarios Conservador, Medio y Alto. "
         f"El escenario seleccionado para esta revisión es <b>{escenario}</b>.",
@@ -2635,8 +3007,8 @@ def generar_reporte_pdf():
         ])
 
     escenarios_table = Table(
-        escenarios_data,
-        colWidths=[1.0*inch, 0.45*inch, 0.95*inch, 0.85*inch, 1.1*inch, 1.15*inch, 0.8*inch, 1.0*inch]
+        wrap_pdf_table(escenarios_data, header_style=table_header_dark_style),
+        colWidths=[0.78*inch, 0.34*inch, 0.74*inch, 0.64*inch, 0.82*inch, 0.84*inch, 0.62*inch, 0.86*inch],
     )
     escenarios_style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.239, 0.478)),
@@ -2645,10 +3017,13 @@ def generar_reporte_pdf():
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.98, 0.98, 1.0)),
         ('GRID', (0, 0), (-1, -1), 1, colors.darkgray),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('TOPPADDING', (0, 1), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
     ])
     for idx, fila in enumerate(resumen_escenarios, start=1):
         if fila["Seleccionado"] == "Sí":
@@ -2658,8 +3033,16 @@ def generar_reporte_pdf():
     story.append(escenarios_table)
     story.append(Spacer(1, 20))
 
+    story.append(Paragraph(
+        f"La proyección ya incorpora una maduración con techo operativo. "
+        f"Hacia el mes {mes_tope_operativo or MESES_PROYECCION}, la unidad alcanza su techo y a partir del siguiente mes se estabiliza alrededor de "
+        f"{fmt_dinero(ventas_tope)} en ventas mensuales.",
+        styles['Normal']
+    ))
+    story.append(Spacer(1, 16))
+
     if not cumple_estandar_comercial and meta_comercial["alcanzable"]:
-        story.append(Paragraph("🧱 Ruta para entrar al estándar", heading_style))
+        story.append(Paragraph("Ruta para entrar al estándar", heading_style))
         ruta_estandar_html = f"""
         <b>Meta de ventas:</b> {meta_ventas_texto} al mes, equivalente a subir {faltante_ventas_texto} frente al nivel actual.<br/>
         <b>Meta de utilidad:</b> {meta_utilidad_texto} al mes como run-rate estabilizado.<br/>
@@ -2671,21 +3054,24 @@ def generar_reporte_pdf():
         story.append(Spacer(1, 16))
     
     # Estructura de ingresos (MÁS VISUAL)
-    story.append(Paragraph("💰 Estructura de Ingresos Mensuales Estabilizados", heading_style))
+    story.append(Paragraph("Estructura de Ingresos Mensuales Estabilizados", heading_style))
     
     ventas_data = [['LÍNEA DE NEGOCIO', 'INGRESOS', 'PARTICIPACIÓN']]
-    ventas_data.append(['💊 Farmacia', f'${ventas_farmacia:,.0f}', f'{(ventas_farmacia/ventas_totales*100):.1f}%'])
+    ventas_data.append(['Farmacia', f'${ventas_farmacia:,.0f}', f'{(ventas_farmacia/ventas_totales*100):.1f}%'])
     
     if m["consultorio"]:
-        ventas_data.append(['💉 Recetas médicas', f'${ventas_recetas:,.0f}', f'{(ventas_recetas/ventas_totales*100):.1f}%'])
-        ventas_data.append(['🩺 Consultas', f'${ingresos_consulta:,.0f}', f'{(ingresos_consulta/ventas_totales*100):.1f}%'])
+        ventas_data.append(['Recetas médicas', f'${ventas_recetas:,.0f}', f'{(ventas_recetas/ventas_totales*100):.1f}%'])
+        ventas_data.append(['Consultas', f'${ingresos_consulta:,.0f}', f'{(ingresos_consulta/ventas_totales*100):.1f}%'])
     
     if m["abarrotes"]:
-        ventas_data.append(['🛒 Conveniencia', f'${ventas_abarrotes:,.0f}', f'{(ventas_abarrotes/ventas_totales*100):.1f}%'])
+        ventas_data.append(['Conveniencia', f'${ventas_abarrotes:,.0f}', f'{(ventas_abarrotes/ventas_totales*100):.1f}%'])
     
-    ventas_data.append(['🎯 TOTAL MENSUAL ESTABILIZADO', f'${ventas_totales:,.0f}', '100.0%'])
+    ventas_data.append(['TOTAL MENSUAL ESTABILIZADO', f'${ventas_totales:,.0f}', '100.0%'])
     
-    ventas_table = Table(ventas_data, colWidths=[2.2*inch, 1.8*inch, 1.5*inch])
+    ventas_table = Table(
+        wrap_pdf_table(ventas_data, header_style=table_header_dark_style, left_first_col=True),
+        colWidths=[2.6*inch, 1.45*inch, 1.25*inch],
+    )
     ventas_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.239, 0.478)),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -2693,17 +3079,22 @@ def generar_reporte_pdf():
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
         ('BACKGROUND', (0, -1), (-1, -1), colors.Color(0.9, 0.95, 0.9)),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('BACKGROUND', (0, 1), (-1, -2), colors.Color(0.98, 0.98, 1.0)),
         ('GRID', (0, 0), (-1, -1), 1, colors.darkgray),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     
     story.append(ventas_table)
     story.append(Spacer(1, 20))
     
     # Evolución del negocio (TRIMESTRAL - más atractivo)
-    story.append(Paragraph("📈 Evolución Trimestral del Primer Año", heading_style))
+    story.append(Paragraph("Evolución Trimestral del Primer Año", heading_style))
     
     proy_data = [['PERÍODO', 'INGRESOS', 'UTILIDAD NETA', 'MARGEN']]
     trimestres = [
@@ -2725,7 +3116,10 @@ def generar_reporte_pdf():
             f'{margen_trim:.1f}%'
         ])
     
-    proy_table = Table(proy_data, colWidths=[1.3*inch, 1.7*inch, 1.7*inch, 1.0*inch])
+    proy_table = Table(
+        wrap_pdf_table(proy_data, header_style=table_header_dark_style),
+        colWidths=[1.1*inch, 1.35*inch, 1.35*inch, 0.9*inch],
+    )
     proy_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0, 0.651, 0.318)),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -2741,12 +3135,12 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 20))
     
     # Evaluación de la oportunidad (MUY VENDEDOR)
-    story.append(Paragraph("🏆 Evaluación de la Oportunidad", heading_style))
+    story.append(Paragraph("Evaluación de la Oportunidad", heading_style))
     
     if cumple_estandar_comercial:
         eval_color = colors.Color(0, 0.5, 0)  # Verde
         conclusion = f"""
-        <b>✅ OPORTUNIDAD EXCELENTE</b><br/><br/>
+        <b>OPORTUNIDAD EXCELENTE</b><br/><br/>
         
         <b>Arranque Controlado:</b> El proyecto soporta el periodo inicial y cierra con utilidad positiva en el primer año<br/>
         <b>Recuperación Comercial:</b> {retorno_reporte_detalle}<br/>
@@ -2759,7 +3153,7 @@ def generar_reporte_pdf():
     elif meta_comercial["alcanzable"]:
         eval_color = colors.Color(0.7, 0.7, 0)  # Amarillo
         conclusion = f"""
-        <b>⚠️ OPORTUNIDAD VIABLE CON CONSIDERACIONES</b><br/><br/>
+        <b>OPORTUNIDAD VIABLE CON CONSIDERACIONES</b><br/><br/>
         
         <b>Meta Comercial:</b> {retorno_reporte_detalle}<br/>
         <b>Ventas Objetivo:</b> Llevar la venta estable hacia {meta_ventas_texto} mensuales<br/>
@@ -2771,7 +3165,7 @@ def generar_reporte_pdf():
     else:
         eval_color = colors.Color(0.8, 0.2, 0)  # Rojo suave (no muy negativo)
         conclusion = f"""
-        <b>📊 OPORTUNIDAD REQUIERE AJUSTES</b><br/><br/>
+        <b>OPORTUNIDAD REQUIERE AJUSTES</b><br/><br/>
         
         <b>Análisis Detallado:</b> Los números actuales sugieren optimizar parámetros<br/>
         <b>Potencial Latente:</b> Ajustes en location/operación pueden mejorar resultados<br/>
@@ -2787,7 +3181,7 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 20))
     
     # Próximos pasos (CALL TO ACTION)
-    story.append(Paragraph("🚀 Próximos Pasos Recomendados", heading_style))
+    story.append(Paragraph("Próximos Pasos Recomendados", heading_style))
     
     next_steps = """
     <b>1. VALIDACIÓN DE UBICACIÓN:</b> Confirmar flujo peatonal y análisis de competencia<br/>
@@ -2801,7 +3195,7 @@ def generar_reporte_pdf():
 
     # Disclaimer profesional
     story.append(Spacer(1, 18))
-    story.append(Paragraph("⚖️ Consideraciones Importantes", heading_style))
+    story.append(Paragraph("Consideraciones Importantes", heading_style))
     disclaimer_style = ParagraphStyle(
         'Disclaimer',
         parent=styles['Normal'],
