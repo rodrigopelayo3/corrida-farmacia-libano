@@ -2103,10 +2103,6 @@ utilidad_abarrotes_display = max(utilidad_abarrotes_raw, 0)
 capital_trabajo_abarrotes = max(-utilidad_abarrotes_raw, 0)
 utilidad_operativa_display = max(utilidad_productos_raw + utilidad_consultas_recetas_raw + utilidad_abarrotes_raw, 0)
 capital_trabajo_operativo = max(-(utilidad_productos_raw + utilidad_consultas_recetas_raw + utilidad_abarrotes_raw), 0)
-lectura_productos = "Positiva" if utilidad_productos_raw > 0 else "Capital de trabajo"
-lectura_consultas_recetas = "Positiva" if utilidad_consultas_recetas_raw > 0 else "Capital de trabajo"
-lectura_abarrotes = "Positiva" if utilidad_abarrotes_raw > 0 else "Capital de trabajo"
-lectura_operativa_total = "Positiva" if utilidad_operativa_display > 0 else "Capital de trabajo"
 
 productos_operativos_df = pd.DataFrame([{
     "Gastos fijos": fmt_dinero(gastos_fijos),
@@ -2121,7 +2117,6 @@ productos_operativos_df = pd.DataFrame([{
     "Ticket promedio": fmt_dinero(ticket),
     "Ventas productos": fmt_dinero(ventas_farmacia),
     "Costo resurtido": fmt_dinero(costo_resurtido_farmacia),
-    "Lectura productos": lectura_productos,
     "Capital trabajo": fmt_dinero(capital_trabajo_productos),
 }])
 
@@ -2143,7 +2138,6 @@ consultas_recetas_df = pd.DataFrame([{
     "Precio receta": fmt_dinero(ticket_receta),
     "Ventas recetas": fmt_dinero(ventas_recetas),
     "Resurtido recetas": fmt_dinero(costo_resurtido_recetas),
-    "Lectura consultas y recetas": lectura_consultas_recetas,
     "Capital trabajo": fmt_dinero(capital_trabajo_consultas_recetas),
 }])
 
@@ -2151,7 +2145,6 @@ resumen_operativo_rows = [
     {
         "Línea": "Productos",
         "Ventas/mes": fmt_dinero(ventas_farmacia),
-        "Lectura utilidad": lectura_productos,
         "Capital trabajo": fmt_dinero(capital_trabajo_productos),
     }
 ]
@@ -2159,20 +2152,17 @@ if m["consultorio"]:
     resumen_operativo_rows.append({
         "Línea": "Consultas y recetas",
         "Ventas/mes": fmt_dinero(ventas_consultas_recetas),
-        "Lectura utilidad": lectura_consultas_recetas,
         "Capital trabajo": fmt_dinero(capital_trabajo_consultas_recetas),
     })
 if m["abarrotes"]:
     resumen_operativo_rows.append({
         "Línea": "Conveniencia",
         "Ventas/mes": fmt_dinero(ventas_abarrotes),
-        "Lectura utilidad": lectura_abarrotes,
         "Capital trabajo": fmt_dinero(capital_trabajo_abarrotes),
     })
 resumen_operativo_rows.append({
     "Línea": "Total mensual",
     "Ventas/mes": fmt_dinero(ventas_totales),
-    "Lectura utilidad": lectura_operativa_total,
     "Capital trabajo": fmt_dinero(capital_trabajo_operativo),
 })
 resumen_operativo_df = pd.DataFrame(resumen_operativo_rows)
@@ -2192,7 +2182,7 @@ escenario_visual = {
         "descripcion": f"Combina una conversión peatonal de {conversion_rate:.1f}% con una dinámica de crecimiento razonable para una conversación realista y sólida.",
         "bullets": [
             "Es la mejor base para revisar si la sucursal entra al estándar.",
-            "Balancea prudencia financiera con una lectura operativa defendible.",
+            "Balancea prudencia financiera con una operación defendible.",
             "Ayuda a alinear expectativas sin perder tracción comercial.",
         ],
     },
@@ -2329,12 +2319,12 @@ with tabs[0]:
                 <div class="sales-section-title">Lectura compartida</div>
                 <h4>Cómo revisar esta sucursal en mesa</h4>
                 <p>
-                    Empieza por la demanda y la mezcla del formato, sigue con la lectura operativa y cierra con el tiempo de recuperación.
+                    Empieza por la demanda y la mezcla del formato, sigue con capital de trabajo y cierra con el tiempo de recuperación.
                     La idea es que vendedor y franquiciatario lean la misma historia económica con orden y sin exagerar supuestos.
                 </p>
                 <ul class="sales-checklist">
                     <li>Primero: demanda local, tráfico y ticket.</li>
-                    <li>Segundo: ventas estabilizadas, lectura operativa y equilibrio.</li>
+                    <li>Segundo: ventas estabilizadas, capital de trabajo y equilibrio.</li>
                     <li>Tercero: inversión total, rampa de arranque y recuperación.</li>
                 </ul>
             </div>
@@ -2517,8 +2507,7 @@ with tabs[4]:
     )
 
     df_simple_rows = []
-    for idx, p in enumerate(proyeccion):
-        utilidad_mes_num = df_num.iloc[idx]["Util. Neta"] if idx < len(df_num) else 0
+    for p in proyeccion:
         df_simple_rows.append({
             "Mes": p["Mes"],
             "Escenario": p["Escenario"],
@@ -2529,7 +2518,6 @@ with tabs[4]:
             "Tickets": p["Tickets"],
             "Ventas": p["Ventas"],
             "Capital de trabajo": p["Capital de trabajo"],
-            "Lectura operativa": "Positiva" if utilidad_mes_num > 0 else "Capital de trabajo",
             "Recuperado": p["Recuperado"],
             "Saldo por recuperar": p["Saldo por recuperar"],
             "Avance recuperación": p["ROI Acum."],
@@ -2839,7 +2827,7 @@ def generar_reporte_pdf():
 
     story.append(Paragraph("Cómo se construyen las ventas", heading_style))
     story.append(Paragraph(
-        "Este desglose muestra la conversión operativa desde flujo, tickets y ticket promedio hasta ventas y lectura operativa mensual.",
+        "Este desglose muestra la conversión operativa desde flujo, tickets y ticket promedio hasta ventas y capital de trabajo mensual.",
         styles['Normal']
     ))
     story.append(Spacer(1, 8))
@@ -2879,19 +2867,18 @@ def generar_reporte_pdf():
     story.append(Spacer(1, 6))
 
     productos_resultado_data = [
-        ['TICKET', 'VENTAS PRODUCTOS', 'COSTO RESURTIDO', 'GASTO VARIABLE', 'LECTURA PRODUCTOS', 'CAPITAL TRABAJO'],
+        ['TICKET', 'VENTAS PRODUCTOS', 'COSTO RESURTIDO', 'GASTO VARIABLE', 'CAPITAL TRABAJO'],
         [
             fmt_dinero(ticket),
             fmt_dinero(ventas_farmacia),
             fmt_dinero(costo_resurtido_farmacia),
             fmt_dinero(gasto_variable_farmacia),
-            lectura_productos,
             fmt_dinero(capital_trabajo_productos),
         ],
     ]
     productos_resultado_table = Table(
         wrap_pdf_table(productos_resultado_data),
-        colWidths=[0.7*inch, 1.05*inch, 1.02*inch, 0.95*inch, 1.05*inch, 1.0*inch],
+        colWidths=[0.72*inch, 1.12*inch, 1.1*inch, 1.0*inch, 1.05*inch],
     )
     productos_resultado_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
@@ -2947,16 +2934,15 @@ def generar_reporte_pdf():
         story.append(Spacer(1, 6))
 
         consultas_resultado_data = [
-            ['RESURTIDO RECETAS', 'LECTURA CONSULTAS Y RECETAS', 'CAPITAL TRABAJO'],
+            ['RESURTIDO RECETAS', 'CAPITAL TRABAJO'],
             [
                 fmt_dinero(costo_resurtido_recetas),
-                lectura_consultas_recetas,
                 fmt_dinero(capital_trabajo_consultas_recetas),
             ],
         ]
         consultas_resultado_table = Table(
             wrap_pdf_table(consultas_resultado_data),
-            colWidths=[1.35*inch, 1.8*inch, 1.15*inch],
+            colWidths=[1.6*inch, 1.25*inch],
         )
         consultas_resultado_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
@@ -2965,7 +2951,6 @@ def generar_reporte_pdf():
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.Color(0.94, 0.97, 0.97)),
-            ('BACKGROUND', (1, 1), (1, 1), colors.Color(0.72, 0.88, 0.65)),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.darkgray),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 2),
@@ -2976,17 +2961,16 @@ def generar_reporte_pdf():
         story.append(consultas_resultado_table)
         story.append(Spacer(1, 10))
 
-    resumen_operativo_data = [['LÍNEA', 'VENTAS/MES', 'LECTURA UTILIDAD', 'CAPITAL TRABAJO']]
+    resumen_operativo_data = [['LÍNEA', 'VENTAS/MES', 'CAPITAL TRABAJO']]
     for fila in resumen_operativo_rows:
         resumen_operativo_data.append([
             fila['Línea'],
             fila['Ventas/mes'],
-            fila['Lectura utilidad'],
             fila['Capital trabajo'],
         ])
     resumen_operativo_table = Table(
         wrap_pdf_table(resumen_operativo_data, left_first_col=True),
-        colWidths=[1.75*inch, 1.15*inch, 1.15*inch, 1.15*inch],
+        colWidths=[2.2*inch, 1.35*inch, 1.35*inch],
     )
     resumen_operativo_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.44, 0.62, 0.65)),
@@ -3127,7 +3111,7 @@ def generar_reporte_pdf():
     # Evolución del negocio (TRIMESTRAL - más atractivo)
     story.append(Paragraph("Evolución Trimestral del Primer Año", heading_style))
     
-    proy_data = [['PERÍODO', 'INGRESOS', 'LECTURA OPERATIVA', 'MARGEN OBJ.']]
+    proy_data = [['PERÍODO', 'INGRESOS', 'CAPITAL TRABAJO', 'MARGEN OBJ.']]
     trimestres = [
         ("Mes 1-3", 0, 2),
         ("Mes 4-6", 3, 5), 
@@ -3137,13 +3121,12 @@ def generar_reporte_pdf():
     
     for nombre, inicio, fin in trimestres:
         ventas_trim = sum([int(proyeccion[i]['Ventas'].replace('$', '').replace(',', '')) for i in range(inicio, fin+1)])
-        util_trim = sum([int(proyeccion[i]['Util. Neta'].replace('$', '').replace(',', '')) for i in range(inicio, fin+1)])
-        lectura_trim = "Positiva" if util_trim > 0 else "Capital de trabajo"
+        capital_trim = sum([int(proyeccion[i]['Capital de trabajo'].replace('$', '').replace(',', '')) for i in range(inicio, fin+1)])
         
         proy_data.append([
             nombre,
             f'${ventas_trim:,}',
-            lectura_trim,
+            f'${capital_trim:,}',
             MARGEN_OBJETIVO_COMERCIAL
         ])
     
