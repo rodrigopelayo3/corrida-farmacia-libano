@@ -2510,7 +2510,6 @@ with tabs[4]:
     for p in proyeccion:
         df_simple_rows.append({
             "Mes": p["Mes"],
-            "Escenario": p["Escenario"],
             "Peatones": p["Peatones"],
             "Vehículos": p["Vehículos"],
             "Conv. peat.": p["Conv. peat."],
