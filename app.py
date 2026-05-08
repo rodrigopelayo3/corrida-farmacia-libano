@@ -721,6 +721,11 @@ MES_TOPE_OPERATIVO_ESCENARIO = {
     "Medio": 16,
     "Alto": 16,
 }
+CRECIMIENTO_FLUJO_TOPE_ESCENARIO = {
+    "Conservador": 1.03,
+    "Medio": 1.05,
+    "Alto": 1.07,
+}
 CRECIMIENTO_OPCIONES_POR_ESCENARIO = {
     "Conservador": ["Base (1.5%/mes)", "Comercial (3.5%/mes)", "Acelerado (5%/mes)"],
     "Medio": ["Comercial (3.5%/mes)", "Acelerado (5%/mes)"],
@@ -1047,6 +1052,13 @@ def calcular_resultados_proyectados(
         mes_tope_operativo=MES_TOPE_OPERATIVO_ESCENARIO[escenario],
         meses_proyeccion=meses_proyeccion,
     )
+    flujo_tope_factor = CRECIMIENTO_FLUJO_TOPE_ESCENARIO[escenario]
+
+    def obtener_factor_flujo(mes_actual):
+        if mes_tope_operativo is None or mes_tope_operativo <= 1:
+            return 1.0
+        avance = limitar((mes_actual - 1) / (mes_tope_operativo - 1), 0, 1)
+        return 1 + ((flujo_tope_factor - 1) * avance)
 
     def simular_escala(scale, incluir_detalle):
         proyeccion = []
@@ -1078,14 +1090,18 @@ def calcular_resultados_proyectados(
         ticket_prom_escala = ventas_totales / (clientes_totales_base * scale) if clientes_totales_base > 0 else 0
 
         for t, factor in enumerate(factores):
-            flujo_peatonal_mes_t = flujo_peatonal_mes * factor
-            flujo_vehicular_mes_t = flujo_vehicular_mes * factor
+            mes_actual = t + 1
+            factor_flujo = obtener_factor_flujo(mes_actual)
+            flujo_peatonal_mes_t = flujo_peatonal_mes * factor_flujo
+            flujo_vehicular_mes_t = flujo_vehicular_mes * factor_flujo
             clientes_peatonales_mes_t = clientes_peatonales_mes * factor
             clientes_vehiculares_mes_t = clientes_vehiculares_mes * factor
+            conversion_t = clientes_peatonales_mes_t / flujo_peatonal_mes_t if flujo_peatonal_mes_t > 0 else 0
+            captacion_vehicular_t = clientes_vehiculares_mes_t / flujo_vehicular_mes_t if flujo_vehicular_mes_t > 0 else 0
             tickets_mes_t = clientes_peatonales_mes_t + clientes_vehiculares_mes_t
-            vf = ventas_farmacia * factor
+            vf = tickets_mes_t * ticket * scale
             vr = ventas_recetas * factor
-            va = ventas_abarrotes * factor
+            va = vf * abarrotes_pct if abarrotes_pct else 0
             ic = ingresos_consulta * factor
             vt = vf + vr + va + ic
 
@@ -1116,12 +1132,12 @@ def calcular_resultados_proyectados(
 
             if incluir_detalle:
                 proyeccion.append({
-                    "Mes": t + 1,
+                    "Mes": mes_actual,
                     "Escenario": escenario,
                     "Peatones": f"{round(flujo_peatonal_mes_t):,}",
                     "Vehículos": f"{round(flujo_vehicular_mes_t):,}",
-                    "Conv. peat.": f"{conversion * 100:.1f}%",
-                    "Capt. veh.": f"{captacion_vehicular * 100:.1f}%",
+                    "Conv. peat.": f"{conversion_t * 100:.1f}%",
+                    "Capt. veh.": f"{captacion_vehicular_t * 100:.1f}%",
                     "Tickets": f"{round(tickets_mes_t):,}",
                     "Ventas": f"${round(vt):,}",
                     "COGS": f"${round(ct):,}",
@@ -1136,12 +1152,12 @@ def calcular_resultados_proyectados(
                     "Margen %": f"{round(mn * 100, 1)}%",
                 })
                 proyeccion_num.append({
-                    "Mes": t + 1,
+                    "Mes": mes_actual,
                     "Escenario": escenario,
                     "Peatones": round(flujo_peatonal_mes_t),
                     "Vehículos": round(flujo_vehicular_mes_t),
-                    "Conv. peat.": round(conversion * 100, 1),
-                    "Capt. veh.": round(captacion_vehicular * 100, 1),
+                    "Conv. peat.": round(conversion_t * 100, 1),
+                    "Capt. veh.": round(captacion_vehicular_t * 100, 1),
                     "Tickets": round(tickets_mes_t),
                     "Ventas": round(vt),
                     "Capital de trabajo": round(capital_trabajo_t),
@@ -1746,7 +1762,7 @@ gastos_fijos = sum(st.session_state.gastos_fijos_items.values()) if "gastos_fijo
 
 # Proyección con rampa de arranque
 with st.sidebar.expander("📈 Arranque y crecimiento", expanded=True):
-    st.caption("Un negocio suele arrancar flojo, crecer rápido al inicio y luego estabilizarse.")
+    st.caption("La maduración viene sobre todo de conversión y captación.")
     opciones_arranque = ARRANQUE_OPCIONES_POR_ESCENARIO[escenario]
     arranque_opcion = st.selectbox(
         "Fuerza del arranque",
@@ -1764,7 +1780,7 @@ with st.sidebar.expander("📈 Arranque y crecimiento", expanded=True):
     )
     opciones_crecimiento = CRECIMIENTO_OPCIONES_POR_ESCENARIO[escenario]
     crec_opcion = st.selectbox(
-        "Crecimiento mensual una vez estabilizado",
+        "Maduración mensual",
         opciones_crecimiento,
         key="crecimiento_sidebar",
     )
@@ -1792,7 +1808,7 @@ with st.sidebar.expander("📈 Arranque y crecimiento", expanded=True):
 
     st.info(
         f"📈 Tu escenario opera con un arranque de {arranque_inicial_efectivo*100:.0f}% del nivel estabilizado, "
-        f"rampa de {meses_rampa_efectivos} meses y crecimiento posterior de {crec_efectivo*100:.1f}% mensual."
+        f"rampa de {meses_rampa_efectivos} meses y maduración posterior de {crec_efectivo*100:.1f}% mensual."
     )
     if candados_arranque:
         st.caption(f"Candado comercial aplicado: {', '.join(candados_arranque)}.")
@@ -1879,9 +1895,9 @@ meta_comercial = resultado["meta_comercial"]
 retorno_visual = construir_retorno_visual(meses_recuperacion, escenario, cumple_estandar_comercial)
 clientes_mes_display = int(np.ceil(clientes_mes))
 clientes_be_display = int(np.ceil(clientes_be)) if np.isfinite(clientes_be) else 0
-techo_sobre_estable_pct = max((techo_maduro_factor - 1) * 100, 0)
 utilidad_operativa_lectura = "Positiva" if utilidad_mes_estable > 0 else "En maduración"
 nivel_equilibrio_texto = f"{porcentaje_equilibrio:.0f}% de la venta estable"
+crecimiento_flujo_tope_pct = (CRECIMIENTO_FLUJO_TOPE_ESCENARIO[escenario] - 1) * 100
 
 resumen_escenarios = []
 for escenario_pdf in ["Conservador", "Medio", "Alto"]:
@@ -2207,8 +2223,8 @@ argumentos_cards = [
         f"El punto de equilibrio exige {porcentaje_equilibrio:.0f}% de la venta estable, lo que deja un margen de seguridad de {margen_seguridad:.0f}% cuando la unidad madura."
     ),
     (
-        "Historia de crecimiento",
-        f"El arranque parte en {arranque_inicial_efectivo*100:.0f}% y luego escala con una dinámica de crecimiento que permite explicar la maduración del negocio sin prometer magia desde el mes uno."
+        "Historia de maduración",
+        f"El arranque parte en {arranque_inicial_efectivo*100:.0f}% y mejora por reconocimiento del punto, conversión y captación; el flujo físico solo crece ligeramente."
     ),
 ]
 
@@ -2353,7 +2369,7 @@ with tabs[1]:
     render_summary_strip([
         ("Tráfico peatonal", f"{peatones_dia:,} personas al día con conversión peatonal de {conversion_rate:.1f}%."),
         ("Tráfico vehicular", f"{vehiculos_dia:,} vehículos al día con captación de {captacion_rate:.1f}%."),
-        ("Maduración esperada", f"La unidad termina de crecer hacia el mes {mes_tope_operativo or MESES_PROYECCION}, alcanzando un techo operativo de {techo_sobre_estable_pct:.0f}% sobre el nivel estabilizado."),
+        ("Maduración esperada", f"El flujo físico crece hasta {crecimiento_flujo_tope_pct:.0f}%; lo demás viene de mejor conversión y captación."),
     ])
 
     col_flujo1, col_flujo2, col_flujo3, col_flujo4 = st.columns(4)
@@ -2389,7 +2405,7 @@ with tabs[2]:
     st.markdown("### 🧮 Desglose Operativo")
     render_summary_strip([
         ("Escenario de flujo", f"{escenario}: {flujo:,} peatones/hora, {flujo_vehicular:,} vehículos/hora y {horas} horas abiertas al día."),
-        ("Conversión", f"{conversion_rate:.1f}% de peatones y {captacion_rate:.1f}% de vehículos se convierten en tickets."),
+        ("Conversión base", f"{conversion_rate:.1f}% peatonal y {captacion_rate:.1f}% vehicular; en la proyección maduran mes a mes."),
         ("Ventas derivadas", f"{clientes_mes_display:,} tickets al mes con ticket promedio blended de {fmt_dinero(ticket_prom)}."),
     ])
 
@@ -2495,12 +2511,11 @@ with tabs[4]:
     render_summary_strip([
         ("Ventas del año", f"{fmt_dinero(ventas_anual)} proyectadas durante los primeros 12 meses."),
         ("Utilidad operativa", f"{utilidad_operativa_lectura} al estabilizarse; margen objetivo {MARGEN_OBJETIVO_COMERCIAL}."),
-        ("Tope operativo", f"En el mes {mes_tope_operativo or MESES_PROYECCION} la unidad alcanza su techo de ventas y deja de crecer."),
+        ("Tope operativo", f"En el mes {mes_tope_operativo or MESES_PROYECCION} se estabilizan flujo, conversión y captación."),
     ])
     st.caption(
-        f"Cada mes deriva de un escenario {escenario.lower()} con {flujo:,} peatones/hora, "
-        f"{flujo_vehicular:,} vehículos/hora, conversión peatonal de {conversion_rate:.1f}% "
-        f"y captación vehicular de {captacion_rate:.1f}%."
+        f"El flujo físico se mantiene casi estable y solo sube hasta {crecimiento_flujo_tope_pct:.0f}%; "
+        "la maduración principal viene de mayor conversión peatonal y captación vehicular."
     )
     st.caption(
         "La columna `Capital de trabajo` agrupa el soporte temporal del arranque y cualquier faltante del mes mientras la sucursal madura."
@@ -2528,7 +2543,7 @@ with tabs[4]:
     st.line_chart(df_num.set_index("Mes")[["Ventas", "Recuperado"]])
     st.caption(
         f"La proyección ya considera un techo operativo. "
-        f"A partir del mes {(mes_tope_operativo or MESES_PROYECCION) + 1}, la sucursal deja de crecer y se estabiliza."
+        f"A partir del mes {(mes_tope_operativo or MESES_PROYECCION) + 1}, la sucursal deja de madurar y se estabiliza."
     )
 
     render_insight_panel(
@@ -3049,8 +3064,8 @@ def generar_reporte_pdf():
 
     story.append(Paragraph(
         f"La proyección ya incorpora una maduración con techo operativo. "
-        f"Hacia el mes {mes_tope_operativo or MESES_PROYECCION}, la unidad alcanza su techo y a partir del siguiente mes se estabiliza alrededor de "
-        f"{fmt_dinero(ventas_tope)} en ventas mensuales.",
+        f"El flujo físico solo crece ligeramente, hasta {crecimiento_flujo_tope_pct:.0f}%; el resto de la mejora viene de reconocimiento del punto, conversión y captación. "
+        f"Hacia el mes {mes_tope_operativo or MESES_PROYECCION}, la unidad se estabiliza alrededor de {fmt_dinero(ventas_tope)} en ventas mensuales.",
         styles['Normal']
     ))
     story.append(Spacer(1, 16))
