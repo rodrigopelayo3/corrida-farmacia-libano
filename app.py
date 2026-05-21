@@ -2066,19 +2066,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown("### 💼 Lectura comercial del modelo")
-_render_sales_cards(copy_modelo["cards"], eyebrow="Contexto comercial")
-
-st.markdown(
-    f"""
-    <div class="sales-callout">
-        <h3>Lectura del Escenario</h3>
-        <p><strong>{escenario}:</strong> {ESCENARIO_COMERCIAL[escenario]} {copy_modelo['cierre']}</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
 # Análisis y narrativa comercial
 peatones_dia = flujo * horas
 vehiculos_dia = flujo_vehicular * horas
@@ -2262,184 +2249,35 @@ argumentos_cards = [
     ),
 ]
 
-tabs = st.tabs(["🎯 Cierre Ejecutivo", "👥 Mercado y Demanda", "🧮 Desglose Operativo", "💸 Economía", "📈 Proyección"])
+tabs = st.tabs(["Resumen", "Desglose", "Proyección"])
 
 with tabs[0]:
-    st.markdown("### 🎯 Cierre Ejecutivo")
-    if cumple_estandar_comercial:
-        render_insight_panel(
-            "Estatus de Viabilidad",
-            "Dentro del estándar Líbano",
-            f"La corrida ya cae en una banda comercial defendible: recuperación estimada {retorno_visual['metrica']}, equilibrio objetivo {EQUILIBRIO_OBJETIVO_COMERCIAL} y margen objetivo {MARGEN_OBJETIVO_COMERCIAL}.",
-            [
-                "El arranque se explica como capital de trabajo y maduración operativa.",
-                f"Utilidad estable estimada: {fmt_dinero(utilidad_mes_estable)}.",
-                "La base operativa ya se sostiene con los parámetros actuales.",
-            ],
-        )
-    elif meta_comercial["alcanzable"]:
-        render_insight_panel(
-            "Estatus de Viabilidad",
-            "Ajustable para entrar a estándar",
-            "La mezcla actual todavía no entra en la banda objetivo, pero la app ya señala el mínimo operativo para volverla defendible.",
-            [
-                f"Ventas estables mínimas: {fmt_dinero(meta_comercial['ventas_estables_minimas'])} al mes.",
-                f"Utilidad estable estimada: {fmt_dinero(utilidad_mes_estable)}.",
-                f"Tickets mensuales mínimos: {meta_comercial['tickets_mes_minimos']:,}.",
-            ],
-        )
-    else:
-        render_insight_panel(
-            "Estatus de Viabilidad",
-            "Conviene replantear la base operativa",
-            "La estructura actual no da una base suficiente para sostener la sucursal en la banda objetivo. Aquí conviene corregir ubicación, ticket o costos antes de seguir.",
-            [
-                "Todavía no conviene generar PDF.",
-                "Primero hay que reconstruir la base económica de la sucursal.",
-                "El objetivo es volver a una banda defendible sin forzar el discurso.",
-            ],
-        )
-
-    render_summary_strip([
-        ("Recuperación estimada", retorno_visual["resumen"]),
-        ("Equilibrio objetivo", f"{EQUILIBRIO_OBJETIVO_COMERCIAL}; nivel de equilibrio actual: {nivel_equilibrio_texto}."),
-        ("Ruta de viabilidad", f"Primero valida demanda y mezcla, después margen objetivo {MARGEN_OBJETIVO_COMERCIAL} y recuperación dentro del estándar."),
-    ])
-
-    st.markdown("### 📊 Base inicial de la corrida")
-    c1, c2, c3 = st.columns(3)
+    st.markdown("### Resumen")
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("💼 Capital a recuperar", fmt_dinero(inversion_total))
-        st.caption("Inversión base más colchón operativo")
+        st.metric("Capital a recuperar", fmt_dinero(inversion_total))
     with c2:
-        st.metric("🛡️ Colchón operativo", fmt_dinero(colchon_operativo))
-        st.caption("Reserva comercial para arranque y maduración")
+        st.metric("Venta estable", fmt_dinero(ventas_mes_estable))
     with c3:
-        st.metric("👥 Tickets estimados/mes", f"{clientes_mes_display:,}")
-        st.caption("Derivado de flujo, conversión y horario")
-
-    c4, c5, c6 = st.columns(3)
+        st.metric("Utilidad estable", fmt_dinero(utilidad_mes_estable))
     with c4:
-        st.metric("💵 Venta estable estimada", fmt_dinero(ventas_mes_estable))
-        st.caption("Referencia mensual de maduración, no garantía")
+        st.metric("Estado", "Dentro" if cumple_estandar_comercial else "Ajustar")
+
+    c5, c6, c7, c8 = st.columns(4)
     with c5:
-        st.metric("🎯 Equilibrio objetivo", EQUILIBRIO_OBJETIVO_COMERCIAL)
-        st.caption(nivel_equilibrio_texto)
+        st.metric("Tickets/mes", f"{clientes_mes_display:,}")
     with c6:
-        st.metric("📈 Margen objetivo", MARGEN_OBJETIVO_COMERCIAL)
-        st.caption("Banda comercial de referencia")
-
-    c7, c8, c9 = st.columns(3)
+        st.metric("Punto equilibrio", fmt_dinero(ventas_be))
     with c7:
-        st.metric("💰 Utilidad estable", fmt_dinero(utilidad_mes_estable))
-        st.caption("Después de resurtido y gastos")
+        st.metric("Recuperación", retorno_visual["metrica"])
     with c8:
-        st.metric("⏱️ Recuperación estimada", retorno_visual["metrica"])
-        st.caption(f"Estándar Líbano: {meta_escenario_actual['payback_min']:.0f}-{meta_escenario_actual['payback_max']:.0f} meses")
-    with c9:
-        st.metric("🚦 Estado comercial", "Dentro" if cumple_estandar_comercial else "Ajustar")
-        st.caption("Valida si la corrida entra a la banda objetivo")
-
-    if not cumple_estandar_comercial and meta_comercial["alcanzable"]:
-        st.markdown("### 🧱 Estándar mínimo operativo")
-        render_summary_strip([
-            ("Meta ventas/mes", f"{fmt_dinero(meta_comercial['ventas_estables_minimas'])} para volver al estándar."),
-            ("Utilidad esperada", f"{utilidad_operativa_lectura} al estabilizarse; margen objetivo {MARGEN_OBJETIVO_COMERCIAL}."),
-            ("Meta tickets/mes", f"{meta_comercial['tickets_mes_minimos']:,} tickets con la mezcla actual."),
-        ])
-        render_insight_panel(
-            "Qué tendría que pasar",
-            f"Para entrar a la banda {banda_objetivo_texto}",
-            "La sucursal puede acercarse al estándar por desempeño, por estructura o por inversión inicial. La app te deja ver las tres rutas sin cambiar la historia financiera.",
-            condiciones_banda,
-        )
-
-        st.markdown("### 🔧 Palancas de mejora")
-        _render_sales_cards(palancas_mejora, eyebrow="Palanca cuantificada")
-
-    st.markdown("### 🧭 Factores que sostienen la lectura")
-    _render_sales_cards(argumentos_cards, eyebrow="Factor de viabilidad")
-
-    st.markdown("### 🤝 Ruta de viabilidad")
-    col_cierre1, col_cierre2 = st.columns(2)
-    with col_cierre1:
-        st.markdown(
-            """
-            <div class="sales-card">
-                <div class="sales-section-title">Lectura compartida</div>
-                <h4>Cómo revisar esta sucursal en mesa</h4>
-                <p>
-                    Empieza por la demanda y la mezcla del formato, sigue con capital de trabajo y cierra con el tiempo de recuperación.
-                    La idea es que vendedor y franquiciatario lean la misma historia económica con orden y sin exagerar supuestos.
-                </p>
-                <ul class="sales-checklist">
-                    <li>Primero: demanda local, tráfico y ticket.</li>
-                    <li>Segundo: ventas estabilizadas, capital de trabajo y equilibrio.</li>
-                    <li>Tercero: inversión total, rampa de arranque y recuperación.</li>
-                </ul>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col_cierre2:
-        cierre_html = (
-            f"""
-            <div class="sales-card">
-                <div class="sales-section-title">Siguiente paso recomendado</div>
-                <h4>{'Caso listo para avanzar' if cumple_estandar_comercial else 'Ajustes antes de avanzar'}</h4>
-                <p>{'La corrida ya puede usarse como base de decisión porque entra al estándar definido por Líbano.' if cumple_estandar_comercial else 'Todavía conviene ajustar supuestos antes de tomarla como base de decisión.'}</p>
-                <ul class="sales-checklist">
-                    <li>{'Preparar el PDF y revisar ubicación, inversión y cronograma.' if cumple_estandar_comercial else accion_ventas}</li>
-                    <li>{'Validar que el equilibrio esperado sea consistente con la apertura.' if cumple_estandar_comercial else accion_utilidad}</li>
-                    <li>{'Confirmar con el franquiciatario la base operativa y el plan de arranque.' if cumple_estandar_comercial else accion_tickets}</li>
-                </ul>
-            </div>
-            """
-        )
-        st.markdown(cierre_html, unsafe_allow_html=True)
+        st.metric("Margen objetivo", MARGEN_OBJETIVO_COMERCIAL)
 
 with tabs[1]:
-    st.markdown("### 👥 Mercado y Demanda")
-    render_summary_strip([
-        ("Tráfico peatonal", f"{peatones_dia:,} personas al día con conversión peatonal de {conversion_rate:.1f}%."),
-        ("Tráfico vehicular", f"{vehiculos_dia:,} vehículos al día con captación de {captacion_rate:.1f}%."),
-        ("Maduración esperada", maduracion_flujo_texto),
-    ])
-
-    col_flujo1, col_flujo2, col_flujo3, col_flujo4 = st.columns(4)
-    with col_flujo1:
-        st.metric("🚶 Peatones/día", f"{peatones_dia:,}")
-        st.caption("Flujo peatonal diario")
-    with col_flujo2:
-        st.metric("🚗 Vehículos/día", f"{vehiculos_dia:,}")
-        st.caption(f"Captas {captacion_rate:.1f}%")
-    with col_flujo3:
-        st.metric("🛍️ Tickets desde autos/día", f"{tickets_vehiculares_dia:,.0f}")
-        st.caption("Tráfico que sí se convierte")
-    with col_flujo4:
-        st.metric("💳 Ticket promedio", f"${ticket_prom:,.0f}")
-        st.caption("Ticket blended con servicios")
-
-    render_insight_panel(
-        "Escenario Seleccionado",
-        escenario_visual[escenario]["titulo"],
-        escenario_visual[escenario]["descripcion"],
-        escenario_visual[escenario]["bullets"],
-    )
-
-    col_merc1, col_merc2 = st.columns([1.15, 0.85])
-    with col_merc1:
-        st.markdown("#### 🧭 Comparativo de escenarios")
-        st.dataframe(pd.DataFrame(resumen_escenarios), use_container_width=True, hide_index=True)
-    with col_merc2:
-        st.markdown("#### 💵 Mezcla de ingresos")
-        render_horizontal_bar_chart(desglose, "Participación mensual por línea", VERDE)
-
-with tabs[2]:
-    st.markdown("### 🧮 Desglose Operativo")
+    st.markdown("### Desglose")
     st.dataframe(resumen_formula_df, use_container_width=True, hide_index=True)
 
-    with st.expander("Ver detalle por línea"):
+    with st.expander("Ver detalle"):
         st.markdown("#### Productos")
         st.dataframe(productos_operativos_df, use_container_width=True, hide_index=True)
         st.dataframe(productos_derivacion_df, use_container_width=True, hide_index=True)
@@ -2451,91 +2289,8 @@ with tabs[2]:
         st.markdown("#### Total")
         st.dataframe(resumen_operativo_df, use_container_width=True, hide_index=True)
 
-with tabs[3]:
-    st.markdown("### 💸 Economía del Negocio")
-    render_summary_strip([
-        ("Punto de equilibrio", f"{fmt_dinero(ventas_be)} al mes para cubrir la estructura fija."),
-        ("Margen objetivo", f"{MARGEN_OBJETIVO_COMERCIAL} como banda comercial de referencia."),
-        ("Colchón operativo", f"{fmt_dinero(colchon_operativo)} incorporado para una lectura comercial más sólida."),
-    ])
-
-    col_mg1, col_mg2, col_mg3 = st.columns(3)
-    with col_mg1:
-        st.metric("💊 Margen Farmacia", f"{margen_farmacia:.0f}%")
-        st.caption("Mix genéricos/patente optimizado")
-    with col_mg2:
-        if m["consultorio"]:
-            st.metric("💉 Margen Recetas", f"{margen_recetas:.0f}%")
-            st.caption("Recetas médicas especializadas")
-        else:
-            st.metric("💉 Recetas", "N/A")
-            st.caption("No aplica en este modelo")
-    with col_mg3:
-        if m["abarrotes"]:
-            st.metric("🛒 Margen Abarrotes", f"{margen_abarrotes:.0f}%")
-            st.caption("Productos de conveniencia")
-        else:
-            st.metric("🛒 Abarrotes", "N/A")
-            st.caption("No aplica en este modelo")
-
-    col_g1, col_g2, col_g3, col_g4 = st.columns(4)
-    with col_g1:
-        st.metric("📦 Mercancía", f"${costo_producto:,.0f}")
-        st.caption("Lo que te cuesta el producto")
-    with col_g2:
-        st.metric("🏢 Gastos Fijos", f"${gastos_fijos:,}")
-        st.caption("Renta, nómina, luz, etc.")
-    with col_g3:
-        st.metric("📊 Gastos variables", f"${gastos_extras:,.0f}")
-        st.caption(f"{gasto_variable_pct:.1f}% de las ventas")
-    with col_g4:
-        st.metric("📉 Total gastos", f"${total_gastos:,.0f}")
-        st.caption("Antes de gastos de apertura")
-
-    col_econ1, col_econ2 = st.columns(2)
-    with col_econ1:
-        render_horizontal_bar_chart(
-            {"Mercancía": costo_producto, "Gastos fijos": gastos_fijos, "Gastos variables": gastos_extras},
-            "En qué se va el dinero",
-            AZUL,
-        )
-    with col_econ2:
-        render_insight_panel(
-            "Lectura Financiera",
-            "Lo importante no es solo vender más, sino vender con margen",
-            f"La utilidad operativa esperada se presenta como {utilidad_operativa_lectura.lower()} al estabilizarse, con margen objetivo {MARGEN_OBJETIVO_COMERCIAL}. El equilibrio exige {nivel_equilibrio_texto}.",
-            [
-                f"Equilibrio objetivo comercial: {EQUILIBRIO_OBJETIVO_COMERCIAL}.",
-                f"Gasto extra de apertura: {fmt_dinero(gasto_lanzamiento)} por mes durante los primeros 3 meses.",
-                f"Total a recuperar: {fmt_dinero(inversion_total)} incluyendo colchón.",
-            ],
-        )
-
-    with st.expander("📋 Ver detalle de inversión y gastos"):
-        col_inv, col_gf, col_gv = st.columns(3)
-        with col_inv:
-            st.markdown("**💰 Tu Inversión Inicial**")
-            st.metric("Monto base", f"${inversion:,.0f}")
-            st.caption(f"Colchón operativo automático: ${colchon_operativo:,.0f}")
-            st.markdown(f"**Total a recuperar: ${inversion_total:,.0f}**")
-        with col_gf:
-            st.markdown("**🏢 Tus Gastos Fijos Mensuales**")
-            if "gastos_fijos_items" in st.session_state:
-                gf_df = pd.DataFrame([
-                    {"Concepto": k, "Monto": f"${v:,}"}
-                    for k, v in st.session_state.gastos_fijos_items.items()
-                ])
-                st.dataframe(gf_df, use_container_width=True, hide_index=True)
-                st.markdown(f"**Total: ${gastos_fijos:,}/mes**")
-        with col_gv:
-            st.markdown("**📊 Tu Gasto Variable**")
-            st.metric("Porcentaje", f"{gasto_variable_pct:.1f}%")
-            st.caption(f"Más ${gasto_lanzamiento:,}/mes de apertura en meses 1-3")
-            st.markdown(f"**Equilibrio operativo objetivo: mes {mes_equilibrio_objetivo}**")
-            st.markdown(f"**Margen de seguridad: {margen_seguridad:.0f}%**")
-
-with tabs[4]:
-    st.markdown("### 📈 Proyección y Recuperación")
+with tabs[2]:
+    st.markdown("### Proyección")
     render_summary_strip([
         ("Punto de equilibrio", f"{fmt_dinero(ventas_be)} al mes."),
         ("Utilidad estable", fmt_dinero(utilidad_mes_estable)),
@@ -2563,21 +2318,7 @@ with tabs[4]:
 
     st.markdown("#### Evolución mensual")
     st.line_chart(df_num.set_index("Mes")[["Ventas", "Util. Neta", "Recuperado"]])
-    st.caption(
-        f"La proyección ya considera un techo operativo. "
-        f"A partir del mes {(mes_tope_operativo or MESES_PROYECCION) + 1}, la sucursal deja de madurar y se estabiliza."
-    )
-
-    render_insight_panel(
-        "Resumen Final",
-        f"Cómo leer esta oportunidad en una sola vista para {modelo}",
-        f"Con una inversión total de {fmt_dinero(inversion_total)}, la unidad muestra recuperación estimada {retorno_visual['metrica']}, equilibrio objetivo {EQUILIBRIO_OBJETIVO_COMERCIAL} y margen objetivo {MARGEN_OBJETIVO_COMERCIAL}. La lectura de viabilidad se sostiene porque enseña arranque, maduración y recuperación con una secuencia lógica.",
-        [
-            f"Mes 1 se lee como etapa de arranque y capital de trabajo.",
-            retorno_visual["caption"],
-            f"Utilidad estable estimada: {fmt_dinero(utilidad_mes_estable)}.",
-        ],
-    )
+    st.caption(f"Techo operativo: mes {mes_tope_operativo or MESES_PROYECCION}.")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # GENERADOR DE REPORTE PDF
